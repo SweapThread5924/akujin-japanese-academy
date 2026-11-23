@@ -19,7 +19,8 @@ export type AppTab =
   | 'scenarios'
   | 'study-japan'
   | 'resources'
-  | 'leaderboard';
+  | 'leaderboard'
+  | 'gmail';
 
 interface TopNavProps {
   activeTab: AppTab;
@@ -60,6 +61,7 @@ const NAV_ITEMS: { id: AppTab; label: string }[] = [
   { id: 'study-japan', label: 'Study in Japan' },
   { id: 'resources', label: 'Resources' },
   { id: 'leaderboard', label: 'Leaderboard' },
+  { id: 'gmail', label: 'Gmail' },
 ];
 
 export const TopNav: React.FC<TopNavProps> = ({
@@ -147,7 +149,7 @@ export const TopNav: React.FC<TopNavProps> = ({
         </button>
 
         {/* Zone 2: Concise Single-Line Navigation Links */}
-        <nav aria-label="Main navigation" className="hidden md:flex items-center gap-1.5 lg:gap-2.5 min-w-0">
+        <nav aria-label="Main navigation" className="hidden xl:flex items-center gap-2 2xl:gap-3 min-w-0">
           {NAV_ITEMS.map((item) => {
             const active = activeTab === item.id;
             return (
@@ -156,7 +158,7 @@ export const TopNav: React.FC<TopNavProps> = ({
                 type="button"
                 onClick={() => onSelectTab(item.id)}
                 aria-current={active ? 'page' : undefined}
-                className={`relative py-2 text-[11.5px] lg:text-xs font-medium whitespace-nowrap shrink-0 transition-all duration-200 cursor-pointer akujin-btn-press ${
+                className={`relative py-2 text-[11px] lg:text-xs font-medium whitespace-nowrap shrink-0 transition-all duration-200 cursor-pointer akujin-btn-press ${
                   active
                     ? 'text-[#D92525] dark:text-rose-400 font-semibold'
                     : 'text-stone-600 hover:text-[#141413] dark:text-zinc-400 dark:hover:text-white'
@@ -327,8 +329,8 @@ export const TopNav: React.FC<TopNavProps> = ({
       {/* Compact Inspiring Quote Strip & Mobile Tab Navigation */}
       <div className="border-t border-stone-200/70 dark:border-zinc-800/80 bg-stone-50/70 dark:bg-[#121319]">
         <div className="mx-auto max-w-[1280px] px-3 sm:px-6 py-1.5 flex items-center justify-between gap-3">
-          {/* Mobile Tab Strip fitted cleanly within 390px */}
-          <nav aria-label="Mobile navigation" className="flex md:hidden flex-wrap items-center justify-center w-full gap-1">
+          {/* Mobile & Tablet Tab Strip fitted cleanly below xl */}
+          <nav aria-label="Mobile navigation" className="flex xl:hidden flex-wrap items-center justify-center w-full gap-1 sm:gap-1.5">
             {NAV_ITEMS.map((item) => {
               const active = activeTab === item.id;
               return (
@@ -349,7 +351,7 @@ export const TopNav: React.FC<TopNavProps> = ({
           </nav>
 
           {/* Desktop Dynamic Track Badge + Famous Personality Daily Quote */}
-          <div className="hidden md:flex items-center gap-3 min-w-0 text-xs text-stone-600 dark:text-zinc-300">
+          <div className="hidden xl:flex items-center gap-3 min-w-0 text-xs text-stone-600 dark:text-zinc-300">
             <JlptLevelBadge
               level={targetLevel}
               startingTrack={startingTrack}
@@ -377,7 +379,7 @@ export const TopNav: React.FC<TopNavProps> = ({
           </div>
 
           {/* Reading Aids: Furigana & Romaji Toggles + PWA Install */}
-          <div className="hidden md:flex items-center gap-2 ml-auto shrink-0">
+          <div className="hidden xl:flex items-center gap-2 ml-auto shrink-0">
             <button
               type="button"
               onClick={onToggleFurigana}

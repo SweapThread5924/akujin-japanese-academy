@@ -34,6 +34,7 @@ import { speakJapanese } from '../utils/speechAndPwa';
 import { playCardFlipSound, playQuizFeedbackSound } from '../utils/soundEffects';
 import { JapaneseText } from './JapaneseText';
 import { JlptSkillLabsPanel } from './JlptSkillLabsPanel';
+import type { ReadingSpeedRecord } from '../utils/readingSpeed';
 
 export interface DiscussionItem {
   id: string;
@@ -69,6 +70,7 @@ interface LessonsSectionProps {
   learnerName: string;
   masteredItemIds: string[];
   onMasterItem: (itemId: string, xp: number) => void;
+  onRecordReadingSpeed?: (record: ReadingSpeedRecord) => void;
 }
 
 const LESSONS_GRID_COLS: Record<number, string> = {
@@ -105,6 +107,7 @@ export const LessonsSection: React.FC<LessonsSectionProps> = ({
   learnerName,
   masteredItemIds,
   onMasterItem,
+  onRecordReadingSpeed,
 }) => {
   const activeVisibleLevels = useMemo(
     () => normalizeVisibleJlptLevels(visibleLevels),
@@ -448,6 +451,7 @@ export const LessonsSection: React.FC<LessonsSectionProps> = ({
         masteredItemIds={masteredItemIds}
         onMasterItem={onMasterItem}
         onRecordQuizAnswer={onRecordQuizAnswer}
+        onRecordReadingSpeed={onRecordReadingSpeed}
         onPracticeSpeakingPhrase={(phrase) => {
           setSpokenInput(phrase);
           setPronFeedback(null);

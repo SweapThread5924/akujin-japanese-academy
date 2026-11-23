@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { X, Mail, Lock, User, AlertCircle } from 'lucide-react';
 import { validateAuthInput } from '../utils/authAndForms';
+import { GoogleSignInButton } from './GoogleSignInButton';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -236,14 +237,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <span className="absolute inset-x-0 h-px bg-stone-200 dark:bg-zinc-800" />
         </div>
 
-        <button
-          type="button"
-          onClick={handleGoogleClick}
-          disabled={googleLoading}
-          className="w-full py-2.5 rounded-xl border border-stone-300 dark:border-zinc-700 bg-white dark:bg-[#101218] hover:bg-stone-50 dark:hover:bg-zinc-900 text-xs font-semibold text-[#141413] dark:text-white cursor-pointer disabled:opacity-60 transition-colors"
-        >
-          {googleLoading ? 'Connecting Google Account…' : 'Continue with Google (Cloud Sync)'}
-        </button>
+        <div className="flex justify-center">
+          <GoogleSignInButton
+            onClick={handleGoogleClick}
+            disabled={googleLoading}
+            testId="auth-google-signin-btn"
+            label={googleLoading ? 'Connecting Google Account…' : 'Sign in with Google'}
+            className="w-full"
+          />
+        </div>
       </div>
     </div>
   );

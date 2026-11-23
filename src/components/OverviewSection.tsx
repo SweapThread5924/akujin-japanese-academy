@@ -924,7 +924,11 @@ export const OverviewSection: React.FC<OverviewSectionProps> = ({
       </section>
 
       {/* Contact Section ("Still have queries or doubts?") */}
-      <ContactSection defaultEmail={userEmail} defaultName={learnerName} />
+      <ContactSection
+        defaultEmail={userEmail}
+        defaultName={learnerName}
+        onOpenGmailWorkspace={() => onNavigateTab('gmail')}
+      />
 
       {/* Daily Changing Motivational Quote of the Day */}
       <QuoteOfTheDaySection />

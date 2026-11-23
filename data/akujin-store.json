@@ -1,0 +1,99 @@
+{
+  "profiles": {
+    "akujin-local": {
+      "profileId": "akujin-local",
+      "name": "Guest Learner",
+      "xp": 0,
+      "streak": 0,
+      "hearts": 5,
+      "maxHearts": 5,
+      "lastStudyDate": "",
+      "targetLevel": "N3",
+      "quizCorrectTotal": 0,
+      "recentQuizResults": [],
+      "srsProgress": {},
+      "heatmapHistory": {},
+      "bookmarkedPhrases": [],
+      "unlockedAchievements": [],
+      "masteredItemIds": [],
+      "streakFreezes": 0,
+      "streakFreezeHistory": [],
+      "dailyStudyGoalMinutes": 15,
+      "onboardingCompleted": false,
+      "startingTrack": null,
+      "updatedAt": "2026-11-23T17:18:24.367Z",
+      "readingSpeedRecords": []
+    }
+  },
+  "accounts": {},
+  "backups": {
+    "AKUJIN-DEMO-2026": {
+      "profileId": "AKUJIN-DEMO-2026",
+      "name": "Guest Learner",
+      "xp": 0,
+      "streak": 0,
+      "hearts": 0,
+      "maxHearts": 5,
+      "lastStudyDate": "",
+      "targetLevel": "N5",
+      "quizCorrectTotal": 0,
+      "recentQuizResults": [],
+      "srsProgress": {},
+      "heatmapHistory": {},
+      "bookmarkedPhrases": [],
+      "unlockedAchievements": [],
+      "masteredItemIds": [],
+      "streakFreezes": 0,
+      "streakFreezeHistory": [],
+      "dailyStudyGoalMinutes": 15,
+      "onboardingCompleted": false,
+      "startingTrack": null,
+      "updatedAt": "2026-11-23T15:51:04.555Z"
+    }
+  },
+  "discussions": [
+    {
+      "id": "disc-1",
+      "lessonId": "lesson-n5-particles",
+      "author": "Aarav M.",
+      "jlptBadge": "N5 Learner",
+      "quoteOrPhrase": "図書館で勉強します (Study at the library)",
+      "comment": "Visualizing で as the \"stage\" where action happens finally stopped me from confusing で and に on N5 mock papers!",
+      "upvotes": 14,
+      "createdAt": "2026-11-12T08:15:00Z"
+    },
+    {
+      "id": "disc-2",
+      "lessonId": "lesson-n4-contractions",
+      "author": "Meera K.",
+      "jlptBadge": "N3 Challenger",
+      "quoteOrPhrase": "食べちゃった！ (Oops, I ate it all!)",
+      "comment": "In slice-of-life anime, characters almost always say 〜ちゃった instead of 〜てしまった when they regret eating someone else’s pudding.",
+      "upvotes": 21,
+      "createdAt": "2026-11-13T11:40:00Z"
+    },
+    {
+      "id": "disc-3",
+      "lessonId": "lesson-n3-nuance",
+      "author": "Kenji S.",
+      "jlptBadge": "N2 Passed",
+      "quoteOrPhrase": "ワクワクが止まらない (Can’t stop feeling excited)",
+      "comment": "Notice how ドキドキ can be nervous OR romantic, while ワクワク is pure joyful anticipation before a trip to Tokyo.",
+      "upvotes": 19,
+      "createdAt": "2026-11-14T15:05:00Z"
+    }
+  ],
+  "leaderboard": [
+    {
+      "id": "akujin-local",
+      "name": "Guest Learner",
+      "targetLevel": "N3",
+      "xp": 0,
+      "streak": 0,
+      "kanjiLearned": 0
+    }
+  ],
+  "contacts": [],
+  "newsletterSubscribers": [],
+  "sentEmails": []
+}

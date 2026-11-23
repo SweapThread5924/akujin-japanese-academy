@@ -55,6 +55,10 @@
           "type": "integer",
           "description": "Number of active 1-day streak freezes."
         },
+        "readingSpeedRecords": {
+          "type": "array",
+          "description": "Up to 50 recent reading comprehension speed (CPM) records."
+        },
         "createdAt": {
           "type": "string",
           "format": "date-time",

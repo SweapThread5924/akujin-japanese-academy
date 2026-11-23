@@ -8,8 +8,12 @@ import {
   Languages,
   Mic,
   PenTool,
+  Play,
+  RotateCcw,
   Search,
   Sparkles,
+  Square,
+  Timer,
   Volume2,
 } from 'lucide-react';
 import { getJlptLevelPack } from '../data/jlptUpperData';
@@ -22,6 +26,14 @@ import {
 import type { JlptLevel } from '../utils/srsEngine';
 import { speakJapanese } from '../utils/speechAndPwa';
 import { playQuizFeedbackSound } from '../utils/soundEffects';
+import {
+  calculateReadingCpm,
+  classifyReadingPace,
+  countJapaneseReadingCharacters,
+  formatDurationMmSs,
+  JLPT_TARGET_CPM,
+  type ReadingSpeedRecord,
+} from '../utils/readingSpeed';
 
 export type JlptSkillTab =
   | 'vocab'
@@ -38,6 +50,7 @@ interface JlptSkillLabsPanelProps {
   masteredItemIds: string[];
   onMasterItem: (itemId: string, xp: number) => void;
   onRecordQuizAnswer: (isCorrect: boolean, xpEarned: number) => void;
+  onRecordReadingSpeed?: (record: ReadingSpeedRecord) => void;
   onPracticeSpeakingPhrase?: (phrase: string, reading: string, romaji: string) => void;
 }
 
@@ -50,6 +63,7 @@ export const JlptSkillLabsPanel: React.FC<JlptSkillLabsPanelProps> = ({
   masteredItemIds,
   onMasterItem,
   onRecordQuizAnswer,
+  onRecordReadingSpeed,
   onPracticeSpeakingPhrase,
 }) => {
   const [skillTab, setSkillTab] = useState<JlptSkillTab>('vocab');
@@ -57,11 +71,16 @@ export const JlptSkillLabsPanel: React.FC<JlptSkillLabsPanelProps> = ({
   const [vocabCategory, setVocabCategory] = useState<string>('ALL');
   const [vocabPage, setVocabPage] = useState(0);
 
-  // Reading state
+  // Reading state & CPM speed stopwatch
   const [readingIdx, setReadingIdx] = useState(0);
   const [showReadingTranslation, setShowReadingTranslation] = useState(false);
   const [readingChoice, setReadingChoice] = useState<string | null>(null);
   const [readingSubmitted, setReadingSubmitted] = useState(false);
+  const [readingTimerStatus, setReadingTimerStatus] = useState<'idle' | 'running' | 'completed'>('idle');
+  const [readingElapsedMs, setReadingElapsedMs] = useState(0);
+  const [readingSpeedResult, setReadingSpeedResult] = useState<ReadingSpeedRecord | null>(null);
+  const readingStartRef = useRef<number | null>(null);
+  const readingRecordedRunRef = useRef(false);
 
   // Listening state
   const [listeningIdx, setListeningIdx] = useState(0);
@@ -169,6 +188,65 @@ export const JlptSkillLabsPanel: React.FC<JlptSkillLabsPanelProps> = ({
   const activeListening = pack.listening[listeningIdx % pack.listening.length] ?? pack.listening[0];
   const activeWriting = pack.writing[writingIdx % pack.writing.length] ?? pack.writing[0];
 
+  const activeReadingCharCount = useMemo(
+    () => (activeReading ? countJapaneseReadingCharacters(activeReading.japaneseText) : 0),
+    [activeReading]
+  );
+  const activeReadingTargetCpm = JLPT_TARGET_CPM[selectedLevel];
+
+  useEffect(() => {
+    if (readingTimerStatus !== 'running') return;
+    const interval = window.setInterval(() => {
+      if (readingStartRef.current !== null) {
+        setReadingElapsedMs(Date.now() - readingStartRef.current);
+      }
+    }, 200);
+    return () => window.clearInterval(interval);
+  }, [readingTimerStatus]);
+
+  const resetReadingTimer = () => {
+    readingStartRef.current = null;
+    readingRecordedRunRef.current = false;
+    setReadingTimerStatus('idle');
+    setReadingElapsedMs(0);
+    setReadingSpeedResult(null);
+  };
+
+  const handleStartReadingTimer = () => {
+    readingStartRef.current = Date.now();
+    readingRecordedRunRef.current = false;
+    setReadingSpeedResult(null);
+    setReadingElapsedMs(0);
+    setReadingTimerStatus('running');
+  };
+
+  const handleCompleteReadingTimer = (comprehensionCorrect?: boolean) => {
+    if (!activeReading || readingTimerStatus !== 'running') return;
+    const elapsedMs =
+      readingStartRef.current !== null
+        ? Math.max(1000, Date.now() - readingStartRef.current)
+        : Math.max(1000, readingElapsedMs);
+    const { elapsedSeconds, cpm } = calculateReadingCpm(activeReadingCharCount, elapsedMs);
+    const record: ReadingSpeedRecord = {
+      id: `rs-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      passageId: activeReading.id,
+      passageTitle: activeReading.title,
+      level: selectedLevel,
+      charCount: activeReadingCharCount,
+      elapsedSeconds,
+      cpm,
+      ...(typeof comprehensionCorrect === 'boolean' ? { comprehensionCorrect } : {}),
+      recordedAt: new Date().toISOString(),
+    };
+    setReadingElapsedMs(elapsedMs);
+    setReadingTimerStatus('completed');
+    setReadingSpeedResult(record);
+    if (!readingRecordedRunRef.current) {
+      readingRecordedRunRef.current = true;
+      onRecordReadingSpeed?.(record);
+    }
+  };
+
   const getWriteCanvasPos = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = writeCanvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
@@ -193,6 +271,7 @@ export const JlptSkillLabsPanel: React.FC<JlptSkillLabsPanelProps> = ({
     setShowReadingTranslation(false);
     setReadingChoice(null);
     setReadingSubmitted(false);
+    resetReadingTimer();
     setListeningIdx(0);
     setShowListeningScript(false);
     setListeningChoice(null);
@@ -515,6 +594,111 @@ export const JlptSkillLabsPanel: React.FC<JlptSkillLabsPanelProps> = ({
               </div>
             </div>
 
+            {/* Reading Speed (CPM) Stopwatch Bar */}
+            <div
+              data-testid="reading-speed-bar"
+              className="rounded-xl bg-white dark:bg-[#101218] border border-stone-200 dark:border-zinc-800 p-3.5 flex flex-wrap items-center justify-between gap-3"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="h-8 w-8 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-[#D92525]/25 flex items-center justify-center shrink-0">
+                  <Timer className="w-4 h-4 text-[#D92525] dark:text-rose-400" aria-hidden="true" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-[#141413] dark:text-white">
+                    Reading Speed Meter (CPM)
+                  </p>
+                  <p className="text-[11px] font-mono-nums text-stone-500 dark:text-zinc-400">
+                    {activeReadingCharCount} Japanese chars · {selectedLevel} Target {activeReadingTargetCpm} CPM
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {readingTimerStatus === 'idle' && (
+                  <button
+                    type="button"
+                    data-testid="reading-start-timer-btn"
+                    onClick={handleStartReadingTimer}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#D92525] hover:bg-[#B91C1C] text-white text-xs font-semibold cursor-pointer transition-colors"
+                  >
+                    <Play className="w-3.5 h-3.5" aria-hidden="true" />
+                    Start Reading Timer
+                  </button>
+                )}
+
+                {readingTimerStatus === 'running' && (
+                  <>
+                    <span
+                      data-testid="reading-live-timer"
+                      className="px-2.5 py-1 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-[#D92525]/35 font-mono-nums text-xs font-bold text-[#D92525] dark:text-rose-300"
+                    >
+                      {formatDurationMmSs(Math.floor(readingElapsedMs / 1000))}
+                    </span>
+                    <button
+                      type="button"
+                      data-testid="reading-finish-timer-btn"
+                      onClick={() => handleCompleteReadingTimer()}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold cursor-pointer transition-colors"
+                    >
+                      <Square className="w-3 h-3" aria-hidden="true" />
+                      Finish &amp; Measure CPM
+                    </button>
+                    <button
+                      type="button"
+                      onClick={resetReadingTimer}
+                      aria-label="Reset reading timer"
+                      className="p-1.5 rounded-lg border border-stone-200 dark:border-zinc-700 text-stone-500 dark:text-zinc-400 hover:text-[#141413] dark:hover:text-white cursor-pointer"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
+                    </button>
+                  </>
+                )}
+
+                {readingTimerStatus === 'completed' && (
+                  <button
+                    type="button"
+                    data-testid="reading-retake-btn"
+                    onClick={resetReadingTimer}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-[#1B1E28] text-xs font-semibold text-[#141413] dark:text-white hover:border-[#D92525] cursor-pointer"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5 text-[#D92525]" aria-hidden="true" />
+                    Retake Timing
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {readingSpeedResult && (() => {
+              const pace = classifyReadingPace(readingSpeedResult.cpm, readingSpeedResult.level);
+              return (
+                <div
+                  data-testid="reading-speed-result"
+                  className="rounded-xl bg-white dark:bg-[#101218] border border-emerald-500/35 p-3.5 flex flex-wrap items-center justify-between gap-3"
+                >
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base font-bold font-mono-nums text-[#141413] dark:text-white">
+                        {readingSpeedResult.cpm} CPM
+                      </span>
+                      <span
+                        className={`px-2 py-0.5 rounded-md border text-[11px] font-semibold ${pace.badgeColorClass}`}
+                      >
+                        {pace.label}
+                      </span>
+                    </div>
+                    <p className="text-[11px] font-mono-nums text-stone-500 dark:text-zinc-400">
+                      Read {readingSpeedResult.charCount} chars in {readingSpeedResult.elapsedSeconds}s · Saved to your Progress Report (+10 XP)
+                    </p>
+                  </div>
+                  <span className="text-xs font-mono-nums font-semibold text-emerald-700 dark:text-emerald-400">
+                    {pace.deltaFromTarget >= 0
+                      ? `+${pace.deltaFromTarget} vs ${readingSpeedResult.level} target`
+                      : `${pace.deltaFromTarget} vs ${readingSpeedResult.level} target`}
+                  </span>
+                </div>
+              );
+            })()}
+
             <p className="font-jp text-base sm:text-lg leading-loose text-[#141413] dark:text-white bg-white dark:bg-[#101218] p-4 rounded-xl border border-stone-200/70 dark:border-zinc-800">
               {activeReading.japaneseText}
             </p>
@@ -551,6 +735,9 @@ export const JlptSkillLabsPanel: React.FC<JlptSkillLabsPanelProps> = ({
                       setReadingChoice(opt.id);
                       setReadingSubmitted(true);
                       const ok = opt.id === activeReading.correctOptionId;
+                      if (readingTimerStatus === 'running') {
+                        handleCompleteReadingTimer(ok);
+                      }
                       playQuizFeedbackSound(soundEnabled, ok);
                       onRecordQuizAnswer(ok, ok ? 25 : 0);
                     }}
@@ -575,6 +762,7 @@ export const JlptSkillLabsPanel: React.FC<JlptSkillLabsPanelProps> = ({
                       setReadingChoice(null);
                       setReadingSubmitted(false);
                       setShowReadingTranslation(false);
+                      resetReadingTimer();
                     }}
                     className="px-4 py-1.5 rounded-lg bg-[#D92525] text-white text-xs font-semibold cursor-pointer"
                   >

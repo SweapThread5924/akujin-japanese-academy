@@ -5,11 +5,13 @@ import { validateContactInput } from '../utils/authAndForms';
 interface ContactSectionProps {
   defaultEmail?: string;
   defaultName?: string;
+  onOpenGmailWorkspace?: () => void;
 }
 
 export const ContactSection: React.FC<ContactSectionProps> = ({
   defaultEmail = '',
   defaultName = '',
+  onOpenGmailWorkspace,
 }) => {
   const [name, setName] = useState(defaultName);
   const [email, setEmail] = useState(defaultEmail);
@@ -110,6 +112,18 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
               <MessageSquare className="w-4 h-4 text-[#D92525] shrink-0" aria-hidden="true" />
               <span>Response within 24 business hours</span>
             </div>
+            {onOpenGmailWorkspace && (
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={onOpenGmailWorkspace}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-[#101218] text-xs font-semibold text-[#141413] dark:text-white hover:border-[#D92525] cursor-pointer transition-colors"
+                >
+                  <Mail className="w-3.5 h-3.5 text-[#D92525]" aria-hidden="true" />
+                  Open Built-in Gmail Workspace →
+                </button>
+              </div>
+            )}
           </div>
         </div>
 

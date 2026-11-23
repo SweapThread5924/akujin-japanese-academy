@@ -69,6 +69,7 @@ service cloud.firestore {
         'streakFreezes',
         'streakFreezeHistory',
         'dailyStudyGoalMinutes',
+        'readingSpeedRecords',
         'createdAt',
         'updatedAt'
       ])
@@ -90,6 +91,7 @@ service cloud.firestore {
       && (!('unlockedAchievements' in data) || (data.unlockedAchievements is list && data.unlockedAchievements.size() <= 50))
       && (!('masteredItemIds' in data) || (data.masteredItemIds is list && data.masteredItemIds.size() <= 5000))
       && (!('streakFreezeHistory' in data) || (data.streakFreezeHistory is list && data.streakFreezeHistory.size() <= 100))
+      && (!('readingSpeedRecords' in data) || (data.readingSpeedRecords is list && data.readingSpeedRecords.size() <= 50 && (data.readingSpeedRecords.size() == 0 || (data.readingSpeedRecords[0] is map && data.readingSpeedRecords[0].cpm is int && data.readingSpeedRecords[0].cpm >= 1 && data.readingSpeedRecords[0].cpm <= 5000))))
       && (!('srsProgress' in data) || data.srsProgress is map)
       && (!('heatmapHistory' in data) || data.heatmapHistory is map);
     }
@@ -176,6 +178,7 @@ service cloud.firestore {
           'streakFreezes',
           'streakFreezeHistory',
           'dailyStudyGoalMinutes',
+          'readingSpeedRecords',
           'updatedAt'
         ]);
       allow delete: if false;

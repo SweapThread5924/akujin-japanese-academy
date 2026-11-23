@@ -23,6 +23,10 @@ import {
 } from './src/utils/authAndForms';
 import { buildStudyPdfBuffer, type PdfSectionLine } from './src/utils/pdfBuilder';
 import {
+  sanitizeReadingSpeedRecords,
+  type ReadingSpeedRecord,
+} from './src/utils/readingSpeed';
+import {
   DEFAULT_SUPPORT_EMAIL,
   buildContactConfirmationEmail,
   buildContactNotificationEmail,
@@ -123,6 +127,7 @@ interface LearnerProfile {
   streakFreezes?: number;
   streakFreezeHistory?: StreakFreezeLogEntry[];
   dailyStudyGoalMinutes?: number;
+  readingSpeedRecords?: ReadingSpeedRecord[];
   onboardingCompleted?: boolean;
   startingTrack?: string | null;
   onboardingAnswers?: Record<string, unknown>;
@@ -168,6 +173,7 @@ function createZeroProfile(profileId: string, name = 'Guest Learner', email?: st
     streakFreezes: 0,
     streakFreezeHistory: [],
     dailyStudyGoalMinutes: DEFAULT_DAILY_STUDY_GOAL_MINUTES,
+    readingSpeedRecords: [],
     onboardingCompleted: false,
     startingTrack: null,
     updatedAt: new Date().toISOString(),
@@ -295,6 +301,7 @@ function normalizeProfile(profile: LearnerProfile): LearnerProfile {
     streakFreezes: typeof profile.streakFreezes === 'number' ? Math.max(0, profile.streakFreezes) : 0,
     streakFreezeHistory: Array.isArray(profile.streakFreezeHistory) ? profile.streakFreezeHistory : [],
     dailyStudyGoalMinutes: normalizeDailyStudyGoal(profile.dailyStudyGoalMinutes),
+    readingSpeedRecords: sanitizeReadingSpeedRecords(profile.readingSpeedRecords),
     onboardingCompleted: Boolean(profile.onboardingCompleted),
     startingTrack: typeof profile.startingTrack === 'string' ? profile.startingTrack : null,
   };

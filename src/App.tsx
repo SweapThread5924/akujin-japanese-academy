@@ -67,6 +67,7 @@ import {
 import { validateNewsletterEmail } from './utils/authAndForms';
 import {
   auth,
+  clearAccessToken,
   loadLearnerProfileFromFirestore,
   signInWithGoogleFirebase,
   signOutFirebase,
@@ -79,6 +80,13 @@ import {
   toggleVisibleJlptLevel,
   writeStoredVisibleJlptLevels,
 } from './utils/jlptVisibility';
+import {
+  prependReadingSpeedRecord,
+  sanitizeReadingSpeedRecords,
+  summarizeReadingSpeed,
+  type ReadingSpeedRecord,
+} from './utils/readingSpeed';
+import { GmailWorkspacePanel } from './components/GmailWorkspacePanel';
 
 interface LearnerState {
   profileId: string;
@@ -103,6 +111,7 @@ interface LearnerState {
   onboardingCompleted: boolean;
   startingTrack: StartingTrackId | null;
   onboardingAnswers?: Partial<OnboardingAnswers>;
+  readingSpeedRecords: ReadingSpeedRecord[];
 }
 
 interface StoredSession {
@@ -135,6 +144,7 @@ const DEFAULT_STATE: LearnerState = {
   dailyStudyGoalMinutes: DEFAULT_DAILY_STUDY_GOAL_MINUTES,
   onboardingCompleted: false,
   startingTrack: null,
+  readingSpeedRecords: [],
 };
 
 function normalizeLearnerState(raw: Partial<LearnerState> & { profileId?: string }): LearnerState {
@@ -151,6 +161,7 @@ function normalizeLearnerState(raw: Partial<LearnerState> & { profileId?: string
     dailyStudyGoalMinutes: normalizeDailyStudyGoal(raw.dailyStudyGoalMinutes),
     onboardingCompleted: Boolean(raw.onboardingCompleted),
     startingTrack: (raw.startingTrack as StartingTrackId | null) ?? null,
+    readingSpeedRecords: sanitizeReadingSpeedRecords(raw.readingSpeedRecords),
   };
 }
 
@@ -283,7 +294,21 @@ export default function App() {
       setActiveTab('foundations');
     }
     const tabParam = params.get('tab') as AppTab | null;
-    if (tabParam && ['overview', 'roadmap', 'foundations', 'lessons', 'kanji', 'scenarios', 'study-japan', 'resources', 'leaderboard'].includes(tabParam)) {
+    if (
+      tabParam &&
+      [
+        'overview',
+        'roadmap',
+        'foundations',
+        'lessons',
+        'kanji',
+        'scenarios',
+        'study-japan',
+        'resources',
+        'leaderboard',
+        'gmail',
+      ].includes(tabParam)
+    ) {
       setActiveTab(tabParam);
     }
   }, []);
@@ -584,6 +609,33 @@ export default function App() {
     showToast('Hearts refilled to 5/5! Keep practicing.');
   };
 
+  const handleRecordReadingSpeed = (record: ReadingSpeedRecord) => {
+    const today = new Date().toISOString().slice(0, 10);
+    persistProgress((prev) => {
+      const resolved = resolveStreakOnStudy({
+        streak: prev.streak,
+        lastStudyDate: prev.lastStudyDate,
+        todayDate: today,
+        streakFreezes: prev.streakFreezes,
+        streakFreezeHistory: prev.streakFreezeHistory,
+      });
+      return {
+        ...prev,
+        xp: prev.xp + 10,
+        streak: resolved.streak,
+        lastStudyDate: resolved.lastStudyDate,
+        streakFreezes: resolved.streakFreezes,
+        streakFreezeHistory: resolved.streakFreezeHistory,
+        readingSpeedRecords: prependReadingSpeedRecord(prev.readingSpeedRecords, record),
+        heatmapHistory: {
+          ...prev.heatmapHistory,
+          [today]: (prev.heatmapHistory[today] ?? 0) + 1,
+        },
+      };
+    });
+    showToast(`${record.cpm} CPM (${record.level}) saved to your Progress Report! (+10 XP)`);
+  };
+
   const handleReviewKanji = (kanjiId: string, rating: SrsRating) => {
     const today = new Date().toISOString().slice(0, 10);
     const xpGain = rating >= 4 ? (rating === 5 ? 30 : 20) : 5;
@@ -831,6 +883,7 @@ export default function App() {
   };
 
   const handleLogout = async () => {
+    clearAccessToken();
     if (session?.authType === 'google') {
       await signOutFirebase().catch(() => {});
     }
@@ -960,7 +1013,7 @@ export default function App() {
       />
 
       <main ref={mainRef} className="relative z-10 flex-1">
-        <div className="md:hidden border-b border-stone-200/70 dark:border-zinc-800 bg-stone-50/80 dark:bg-[#121319] px-2.5 py-1.5 flex flex-wrap items-center justify-between gap-1.5">
+        <div className="xl:hidden border-b border-stone-200/70 dark:border-zinc-800 bg-stone-50/80 dark:bg-[#121319] px-2.5 sm:px-5 py-1.5 flex flex-wrap items-center justify-between gap-1.5">
           <div className="flex items-center gap-1.5 min-w-0">
             <JlptLevelBadge
               level={learner.targetLevel}
@@ -1078,6 +1131,7 @@ export default function App() {
               learnerName={learner.name}
               masteredItemIds={learner.masteredItemIds}
               onMasterItem={handleMasterItem}
+              onRecordReadingSpeed={handleRecordReadingSpeed}
             />
           </div>
         )}
@@ -1183,6 +1237,40 @@ export default function App() {
               darkMode={darkMode}
               onToggleDarkMode={() => setDarkMode((d) => !d)}
               audioSpeed={audioSpeed}
+              readingSpeedRecords={learner.readingSpeedRecords}
+              onOpenReadingLab={() => setActiveTab('lessons')}
+              onOpenGmailHub={() => setActiveTab('gmail')}
+            />
+          </div>
+        )}
+
+        {activeTab === 'gmail' && (
+          <div className="akujin-scroll-item" data-reveal="true">
+            <GmailWorkspacePanel
+              learnerName={learner.name}
+              learnerEmail={session?.email}
+              targetLevel={learner.targetLevel}
+              xp={learner.xp}
+              streak={learner.streak}
+              kanjiLearnedCount={
+                Object.values(learner.srsProgress).filter((c) => c.reviewCount > 0).length
+              }
+              masteredItemsCount={learner.masteredItemIds.length}
+              readingSummary={summarizeReadingSpeed(learner.readingSpeedRecords)}
+              onGoogleConnected={async () => {
+                const user = auth.currentUser;
+                if (user?.email) {
+                  const nextSess: StoredSession = {
+                    profileId: `fb-${user.uid}`,
+                    email: user.email,
+                    name: user.displayName || learner.name,
+                    authType: 'google',
+                  };
+                  setSession(nextSess);
+                  localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(nextSess));
+                }
+                showToast('Gmail Workspace connected securely.');
+              }}
             />
           </div>
         )}
@@ -1296,6 +1384,13 @@ export default function App() {
                 className="akujin-link-underline hover:text-[#D92525] transition-colors cursor-pointer"
               >
                 Contact Us
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('gmail')}
+                className="akujin-link-underline hover:text-[#D92525] transition-colors cursor-pointer"
+              >
+                Gmail Study Inbox
               </button>
               <button
                 type="button"

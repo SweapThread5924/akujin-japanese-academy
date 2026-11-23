@@ -30,6 +30,10 @@ import {
   Compass,
   Edit3,
   Check,
+  Timer,
+  Mail,
+  Gauge,
+  ArrowRight,
 } from 'lucide-react';
 import { ACHIEVEMENTS } from '../data/curriculumData';
 import {
@@ -54,6 +58,11 @@ import {
   type StartingTrackId,
 } from '../utils/onboardingProfile';
 import { formatAudioSpeedLabel } from '../utils/audioSpeed';
+import {
+  classifyReadingPace,
+  summarizeReadingSpeed,
+  type ReadingSpeedRecord,
+} from '../utils/readingSpeed';
 
 export interface LeaderboardRow {
   id: string;
@@ -104,6 +113,9 @@ interface LeaderboardSyncSectionProps {
   darkMode: boolean;
   onToggleDarkMode: () => void;
   audioSpeed: number;
+  readingSpeedRecords: ReadingSpeedRecord[];
+  onOpenReadingLab?: () => void;
+  onOpenGmailHub?: () => void;
 }
 
 function getInitials(name: string): string {
@@ -153,6 +165,9 @@ export const LeaderboardSyncSection: React.FC<LeaderboardSyncSectionProps> = ({
   darkMode,
   onToggleDarkMode,
   audioSpeed,
+  readingSpeedRecords,
+  onOpenReadingLab,
+  onOpenGmailHub,
 }) => {
   const isOnline = useOnlineStatus();
   const [nameDraft, setNameDraft] = useState(learnerName);
@@ -189,6 +204,11 @@ export const LeaderboardSyncSection: React.FC<LeaderboardSyncSectionProps> = ({
   const trackMeta = useMemo(
     () => getStartingTrackMeta(startingTrack ?? targetLevel),
     [startingTrack, targetLevel]
+  );
+
+  const readingSummary = useMemo(
+    () => summarizeReadingSpeed(readingSpeedRecords),
+    [readingSpeedRecords]
   );
 
   const realLeaderboard = useMemo(
@@ -517,10 +537,10 @@ export const LeaderboardSyncSection: React.FC<LeaderboardSyncSectionProps> = ({
           </div>
         </div>
 
-        {/* 6 Live Real Profile Metrics */}
+        {/* 7 Live Real Profile Metrics */}
         <div
           data-reveal-stagger="true"
-          className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 pt-2 border-t border-stone-200/80 dark:border-zinc-800"
+          className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 pt-2 border-t border-stone-200/80 dark:border-zinc-800"
         >
           <div className="rounded-xl bg-stone-50 dark:bg-[#101218] border border-stone-200/70 dark:border-zinc-800 p-3">
             <div className="flex items-center justify-between text-[11px] text-stone-500 dark:text-zinc-400">
@@ -595,6 +615,19 @@ export const LeaderboardSyncSection: React.FC<LeaderboardSyncSectionProps> = ({
               {bookmarkedCount}
             </p>
           </div>
+
+          <div className="rounded-xl bg-stone-50 dark:bg-[#101218] border border-stone-200/70 dark:border-zinc-800 p-3">
+            <div className="flex items-center justify-between text-[11px] text-stone-500 dark:text-zinc-400">
+              <span>Reading CPM</span>
+              <Timer className="w-3.5 h-3.5 text-[#D92525]" aria-hidden="true" />
+            </div>
+            <p
+              data-testid="profile-metric-avg-cpm"
+              className="text-lg font-bold font-mono-nums text-[#141413] dark:text-white mt-1"
+            >
+              {readingSummary.averageCpm > 0 ? readingSummary.averageCpm : '—'}
+            </p>
+          </div>
         </div>
 
         {/* Study Preferences Quick Controls */}
@@ -660,6 +693,223 @@ export const LeaderboardSyncSection: React.FC<LeaderboardSyncSectionProps> = ({
             <span className="px-2.5 py-1 rounded-lg text-xs font-mono-nums font-medium border border-stone-200 dark:border-zinc-700 text-stone-600 dark:text-zinc-300">
               Audio Tempo: {formatAudioSpeedLabel(audioSpeed)}
             </span>
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION 1B: READING SPEED (CPM) PROGRESS REPORT */}
+      <section
+        aria-label="Reading Speed Progress Report"
+        data-testid="reading-speed-progress-report"
+        className="rounded-2xl bg-white dark:bg-[#16181F] border border-stone-200 dark:border-zinc-800 p-5 sm:p-6 space-y-5"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-2">
+              <Timer className="w-5 h-5 text-[#D92525]" aria-hidden="true" />
+              <h2 className="text-lg font-bold text-[#141413] dark:text-white">
+                Reading Speed (CPM) Progress Report
+              </h2>
+            </div>
+            <p className="text-xs text-stone-500 dark:text-zinc-400">
+              Characters per minute tracked across JLPT N5–N1 comprehension passages vs exam targets.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {onOpenReadingLab && (
+              <button
+                type="button"
+                onClick={onOpenReadingLab}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-[#101218] text-xs font-semibold text-[#141413] dark:text-white hover:border-[#D92525] cursor-pointer"
+              >
+                <BookOpen className="w-3.5 h-3.5 text-[#D92525]" aria-hidden="true" />
+                Open Reading Lab
+              </button>
+            )}
+            {onOpenGmailHub && (
+              <button
+                type="button"
+                data-testid="email-progress-report-cta"
+                onClick={onOpenGmailHub}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#D92525] hover:bg-[#B91C1C] text-white text-xs font-semibold cursor-pointer transition-colors"
+              >
+                <Mail className="w-3.5 h-3.5" aria-hidden="true" />
+                Email Report via Gmail
+                <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Summary KPI Strip */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="rounded-xl bg-stone-50 dark:bg-[#101218] border border-stone-200/70 dark:border-zinc-800 p-3.5">
+            <span className="text-[11px] text-stone-500 dark:text-zinc-400 block">
+              Average Speed
+            </span>
+            <p
+              data-testid="report-avg-cpm"
+              className="text-lg font-bold font-mono-nums text-[#141413] dark:text-white mt-0.5"
+            >
+              {readingSummary.averageCpm > 0 ? `${readingSummary.averageCpm} CPM` : 'No runs yet'}
+            </p>
+          </div>
+
+          <div className="rounded-xl bg-stone-50 dark:bg-[#101218] border border-stone-200/70 dark:border-zinc-800 p-3.5">
+            <span className="text-[11px] text-stone-500 dark:text-zinc-400 block">
+              Peak Reading Speed
+            </span>
+            <p
+              data-testid="report-best-cpm"
+              className="text-lg font-bold font-mono-nums text-emerald-700 dark:text-emerald-400 mt-0.5"
+            >
+              {readingSummary.bestCpm > 0 ? `${readingSummary.bestCpm} CPM` : '—'}
+            </p>
+          </div>
+
+          <div className="rounded-xl bg-stone-50 dark:bg-[#101218] border border-stone-200/70 dark:border-zinc-800 p-3.5">
+            <span className="text-[11px] text-stone-500 dark:text-zinc-400 block">
+              Passages Timed
+            </span>
+            <p
+              data-testid="report-passages-count"
+              className="text-lg font-bold font-mono-nums text-[#141413] dark:text-white mt-0.5"
+            >
+              {readingSummary.totalPassagesTimed}
+            </p>
+          </div>
+
+          <div className="rounded-xl bg-stone-50 dark:bg-[#101218] border border-stone-200/70 dark:border-zinc-800 p-3.5">
+            <span className="text-[11px] text-stone-500 dark:text-zinc-400 block">
+              Comprehension Accuracy
+            </span>
+            <p className="text-lg font-bold font-mono-nums text-[#141413] dark:text-white mt-0.5">
+              {readingSummary.comprehensionAccuracyPct !== null
+                ? `${readingSummary.comprehensionAccuracyPct}%`
+                : '—'}
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+          {/* N5-N1 Target Benchmark Progress */}
+          <div className="lg:col-span-5 rounded-xl bg-stone-50 dark:bg-[#101218] border border-stone-200/80 dark:border-zinc-800 p-4 space-y-3">
+            <div className="flex items-center justify-between text-xs font-bold text-[#141413] dark:text-white">
+              <span className="inline-flex items-center gap-1.5">
+                <Gauge className="w-3.5 h-3.5 text-[#D92525]" aria-hidden="true" />
+                JLPT N5–N1 Target Benchmarks
+              </span>
+              <span className="text-[11px] font-mono-nums text-stone-500 dark:text-zinc-400">
+                Your Avg vs Target
+              </span>
+            </div>
+
+            <div className="space-y-2.5">
+              {readingSummary.byLevel.map((row) => {
+                const pct =
+                  row.bestCpm > 0
+                    ? Math.min(100, Math.round((row.bestCpm / row.targetCpm) * 100))
+                    : 0;
+                return (
+                  <div key={row.level} className="space-y-1">
+                    <div className="flex items-center justify-between text-[11px] font-mono-nums">
+                      <span className="font-bold text-[#141413] dark:text-zinc-200">
+                        {row.level}{' '}
+                        <span className="font-normal text-stone-500 dark:text-zinc-400">
+                          ({row.sessionsCount} {row.sessionsCount === 1 ? 'run' : 'runs'})
+                        </span>
+                      </span>
+                      <span className="text-stone-600 dark:text-zinc-300">
+                        {row.bestCpm > 0
+                          ? `Best ${row.bestCpm} / ${row.targetCpm} CPM`
+                          : `Target ${row.targetCpm} CPM`}
+                      </span>
+                    </div>
+                    <div className="h-1.5 w-full rounded-full bg-stone-200 dark:bg-zinc-800 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          pct >= 100 ? 'bg-emerald-600' : 'bg-[#D92525]'
+                        }`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Recent Timed Passages Log */}
+          <div className="lg:col-span-7">
+            {readingSpeedRecords.length === 0 ? (
+              <div
+                data-testid="reading-speed-report-empty"
+                className="rounded-xl border border-dashed border-stone-200 dark:border-zinc-800 bg-stone-50/70 dark:bg-[#101218] p-6 text-center space-y-2.5"
+              >
+                <Timer className="w-6 h-6 text-stone-400 dark:text-zinc-500 mx-auto" aria-hidden="true" />
+                <p className="text-xs font-semibold text-[#141413] dark:text-white">
+                  No timed reading passages recorded yet
+                </p>
+                <p className="text-[11px] text-stone-500 dark:text-zinc-400 max-w-md mx-auto leading-relaxed">
+                  Visit JLPT N5–N1 → Reading Lab and start the Reading Speed Meter (CPM) on any passage to track your Japanese reading fluency here.
+                </p>
+                {onOpenReadingLab && (
+                  <button
+                    type="button"
+                    onClick={onOpenReadingLab}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#D92525] hover:bg-[#B91C1C] text-white text-xs font-semibold cursor-pointer"
+                  >
+                    Go to Reading Lab
+                    <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
+                  </button>
+                )}
+              </div>
+            ) : (
+              <ul
+                data-testid="reading-speed-history-list"
+                className="divide-y divide-stone-100 dark:divide-zinc-800/80 rounded-xl border border-stone-200/80 dark:border-zinc-800 bg-stone-50/60 dark:bg-[#101218] px-4 max-h-[260px] overflow-y-auto"
+              >
+                {readingSpeedRecords.slice(0, 12).map((rec) => {
+                  const pace = classifyReadingPace(rec.cpm, rec.level);
+                  return (
+                    <li
+                      key={rec.id}
+                      data-testid="reading-speed-history-item"
+                      className="py-3 flex flex-wrap items-center justify-between gap-2"
+                    >
+                      <div className="min-w-0 space-y-0.5">
+                        <div className="flex items-center gap-2">
+                          <span className="px-1.5 py-0.5 rounded bg-[#D92525]/10 text-[#D92525] dark:text-rose-300 text-[10px] font-mono-nums font-bold">
+                            {rec.level}
+                          </span>
+                          <p className="text-xs font-semibold text-[#141413] dark:text-white truncate">
+                            {rec.passageTitle}
+                          </p>
+                        </div>
+                        <p className="text-[11px] font-mono-nums text-stone-500 dark:text-zinc-400">
+                          {rec.charCount} chars · {rec.elapsedSeconds}s
+                          {typeof rec.comprehensionCorrect === 'boolean'
+                            ? ` · Quiz ${rec.comprehensionCorrect ? 'Correct ✓' : 'Reviewed'}`
+                            : ''}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span
+                          className={`px-2 py-0.5 rounded-md border text-[10px] font-semibold ${pace.badgeColorClass}`}
+                        >
+                          {pace.label}
+                        </span>
+                        <span className="text-sm font-bold font-mono-nums text-[#141413] dark:text-white">
+                          {rec.cpm} CPM
+                        </span>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </div>
         </div>
       </section>

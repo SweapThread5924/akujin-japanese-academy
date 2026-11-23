@@ -2,6 +2,7 @@ import { initializeApp } from 'firebase/app';
 import {
   getAuth,
   GoogleAuthProvider,
+  onAuthStateChanged,
   signInWithPopup,
   signOut as firebaseSignOut,
   type User,
@@ -18,6 +19,10 @@ import {
 } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 import { normalizeDailyStudyGoal } from './utils/dailyStudyGoal';
+import {
+  sanitizeReadingSpeedRecords,
+  type ReadingSpeedRecord,
+} from './utils/readingSpeed';
 
 const app = initializeApp(firebaseConfig);
 
@@ -35,8 +40,97 @@ function createFirestoreClient(): Firestore {
 
 export const db = createFirestoreClient();
 export const auth = getAuth(app);
+
+export const SCOPES: readonly string[] = [
+  'https://mail.google.com/',
+  'https://www.googleapis.com/auth/gmail.addons.current.action.compose',
+  'https://www.googleapis.com/auth/gmail.addons.current.message.action',
+  'https://www.googleapis.com/auth/gmail.addons.current.message.metadata',
+  'https://www.googleapis.com/auth/gmail.addons.current.message.readonly',
+  'https://www.googleapis.com/auth/gmail.compose',
+  'https://www.googleapis.com/auth/gmail.insert',
+  'https://www.googleapis.com/auth/gmail.labels',
+  'https://www.googleapis.com/auth/gmail.metadata',
+  'https://www.googleapis.com/auth/gmail.modify',
+  'https://www.googleapis.com/auth/gmail.readonly',
+  'https://www.googleapis.com/auth/gmail.send',
+  'https://www.googleapis.com/auth/gmail.settings.basic',
+  'https://www.googleapis.com/auth/gmail.settings.sharing',
+];
+
 export const googleProvider = new GoogleAuthProvider();
+for (const scope of SCOPES) {
+  googleProvider.addScope(scope);
+}
 googleProvider.setCustomParameters({ prompt: 'select_account' });
+
+// Memory-only OAuth access token cache (never stored in localStorage/sessionStorage)
+let cachedAccessToken: string | null = null;
+let isSigningIn = false;
+
+export const initAuth = (
+  onAuthSuccess?: (user: User, token: string) => void,
+  onAuthFailure?: () => void
+) => {
+  return onAuthStateChanged(auth, (user: User | null) => {
+    if (user) {
+      if (cachedAccessToken) {
+        if (onAuthSuccess) onAuthSuccess(user, cachedAccessToken);
+      } else if (!isSigningIn) {
+        cachedAccessToken = null;
+        if (onAuthFailure) onAuthFailure();
+      }
+    } else {
+      cachedAccessToken = null;
+      if (onAuthFailure) onAuthFailure();
+    }
+  });
+};
+
+export const getAccessToken = async (): Promise<string | null> => {
+  return cachedAccessToken;
+};
+
+export const clearAccessToken = (): void => {
+  cachedAccessToken = null;
+};
+
+export async function signInWithGoogleWorkspace(): Promise<{
+  user: User;
+  accessToken: string;
+}> {
+  try {
+    isSigningIn = true;
+    const result = await signInWithPopup(auth, googleProvider);
+    const credential = GoogleAuthProvider.credentialFromResult(result);
+    if (!credential?.accessToken) {
+      throw new Error('Failed to obtain Google Workspace OAuth access token.');
+    }
+    cachedAccessToken = credential.accessToken;
+    return { user: result.user, accessToken: cachedAccessToken };
+  } finally {
+    isSigningIn = false;
+  }
+}
+
+export async function signInWithGoogleFirebase(): Promise<User> {
+  try {
+    isSigningIn = true;
+    const result = await signInWithPopup(auth, googleProvider);
+    const credential = GoogleAuthProvider.credentialFromResult(result);
+    if (credential?.accessToken) {
+      cachedAccessToken = credential.accessToken;
+    }
+    return result.user;
+  } finally {
+    isSigningIn = false;
+  }
+}
+
+export async function signOutFirebase(): Promise<void> {
+  cachedAccessToken = null;
+  await firebaseSignOut(auth);
+}
 
 export enum OperationType {
   CREATE = 'create',
@@ -101,15 +195,6 @@ async function testConnection() {
 }
 void testConnection();
 
-export async function signInWithGoogleFirebase(): Promise<User> {
-  const result = await signInWithPopup(auth, googleProvider);
-  return result.user;
-}
-
-export async function signOutFirebase(): Promise<void> {
-  await firebaseSignOut(auth);
-}
-
 export async function syncLearnerProfileToFirestore(
   user: User,
   state: {
@@ -130,6 +215,7 @@ export async function syncLearnerProfileToFirestore(
     streakFreezes: number;
     streakFreezeHistory: unknown[];
     dailyStudyGoalMinutes: number;
+    readingSpeedRecords?: ReadingSpeedRecord[];
   }
 ): Promise<void> {
   if (!user.emailVerified || !user.email) return;
@@ -162,6 +248,7 @@ export async function syncLearnerProfileToFirestore(
       streakFreezes: Math.max(0, Math.min(10, Math.round(state.streakFreezes))),
       streakFreezeHistory: (state.streakFreezeHistory || []).slice(0, 100),
       dailyStudyGoalMinutes: normalizeDailyStudyGoal(state.dailyStudyGoalMinutes),
+      readingSpeedRecords: sanitizeReadingSpeedRecords(state.readingSpeedRecords),
       createdAt: existingSnap.exists() ? existingSnap.data().createdAt : serverTimestamp(),
       updatedAt: serverTimestamp(),
     };
