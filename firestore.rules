@@ -1,0 +1,240 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isVerifiedUser() && request.auth.uid == userId;
+    }
+
+    function isValidJlptLevel(lvl) {
+      return lvl in ['N5', 'N4', 'N3', 'N2', 'N1'];
+    }
+
+    function isValidLearnerProfile(data, userId) {
+      return data.keys().hasAll([
+        'userId',
+        'email',
+        'name',
+        'xp',
+        'streak',
+        'hearts',
+        'maxHearts',
+        'targetLevel',
+        'dailyStudyGoalMinutes',
+        'streakFreezes',
+        'createdAt',
+        'updatedAt'
+      ])
+      && data.keys().hasOnly([
+        'userId',
+        'email',
+        'name',
+        'xp',
+        'streak',
+        'hearts',
+        'maxHearts',
+        'lastStudyDate',
+        'targetLevel',
+        'quizCorrectTotal',
+        'recentQuizResults',
+        'srsProgress',
+        'heatmapHistory',
+        'bookmarkedPhrases',
+        'unlockedAchievements',
+        'masteredItemIds',
+        'streakFreezes',
+        'streakFreezeHistory',
+        'dailyStudyGoalMinutes',
+        'createdAt',
+        'updatedAt'
+      ])
+      && data.userId == userId
+      && isValidId(data.userId)
+      && data.email is string && data.email.size() >= 3 && data.email.size() <= 160
+      && data.name is string && data.name.size() >= 1 && data.name.size() <= 80
+      && data.xp is int && data.xp >= 0 && data.xp <= 1000000
+      && data.streak is int && data.streak >= 0 && data.streak <= 36500
+      && data.hearts is int && data.hearts >= 0 && data.hearts <= 10
+      && data.maxHearts is int && data.maxHearts >= 1 && data.maxHearts <= 10
+      && isValidJlptLevel(data.targetLevel)
+      && data.dailyStudyGoalMinutes in [5, 15, 30]
+      && data.streakFreezes is int && data.streakFreezes >= 0 && data.streakFreezes <= 10
+      && (!('lastStudyDate' in data) || (data.lastStudyDate is string && data.lastStudyDate.size() <= 32))
+      && (!('quizCorrectTotal' in data) || (data.quizCorrectTotal is int && data.quizCorrectTotal >= 0))
+      && (!('recentQuizResults' in data) || (data.recentQuizResults is list && data.recentQuizResults.size() <= 30))
+      && (!('bookmarkedPhrases' in data) || (data.bookmarkedPhrases is list && data.bookmarkedPhrases.size() <= 200))
+      && (!('unlockedAchievements' in data) || (data.unlockedAchievements is list && data.unlockedAchievements.size() <= 50))
+      && (!('masteredItemIds' in data) || (data.masteredItemIds is list && data.masteredItemIds.size() <= 5000))
+      && (!('streakFreezeHistory' in data) || (data.streakFreezeHistory is list && data.streakFreezeHistory.size() <= 100))
+      && (!('srsProgress' in data) || data.srsProgress is map)
+      && (!('heatmapHistory' in data) || data.heatmapHistory is map);
+    }
+
+    function isValidLeaderboardEntry(data, userId) {
+      return data.keys().hasAll([
+        'userId',
+        'displayName',
+        'targetLevel',
+        'xp',
+        'streak',
+        'kanjiLearned',
+        'updatedAt'
+      ])
+      && data.keys().hasOnly([
+        'userId',
+        'displayName',
+        'targetLevel',
+        'xp',
+        'streak',
+        'kanjiLearned',
+        'updatedAt'
+      ])
+      && data.userId == userId
+      && isValidId(data.userId)
+      && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80
+      && isValidJlptLevel(data.targetLevel)
+      && data.xp is int && data.xp >= 0 && data.xp <= 1000000
+      && data.streak is int && data.streak >= 0 && data.streak <= 36500
+      && data.kanjiLearned is int && data.kanjiLearned >= 0 && data.kanjiLearned <= 5000;
+    }
+
+    function isValidContactInquiry(data, userId) {
+      return data.keys().hasAll(['userId', 'name', 'email', 'mobile', 'message', 'createdAt'])
+      && data.keys().hasOnly(['userId', 'name', 'email', 'mobile', 'message', 'createdAt'])
+      && data.userId == userId
+      && isValidId(data.userId)
+      && data.name is string && data.name.size() >= 1 && data.name.size() <= 100
+      && data.email is string && data.email.size() >= 3 && data.email.size() <= 160
+      && data.mobile is string && data.mobile.size() >= 6 && data.mobile.size() <= 24
+      && data.message is string && data.message.size() >= 4 && data.message.size() <= 2000;
+    }
+
+    function isValidNewsletterPreference(data, userId) {
+      return data.keys().hasAll(['userId', 'email', 'subscribed', 'updatedAt'])
+      && data.keys().hasOnly(['userId', 'email', 'subscribed', 'updatedAt'])
+      && data.userId == userId
+      && isValidId(data.userId)
+      && data.email is string && data.email.size() >= 3 && data.email.size() <= 160
+      && data.subscribed is bool;
+    }
+
+    // Owner-isolated PII & learner state
+    match /learnerProfiles/{userId} {
+      allow get: if isValidId(userId) && isOwner(userId);
+      allow list: if isVerifiedUser() && resource.data.userId == request.auth.uid;
+      allow create: if isValidId(userId)
+        && isOwner(userId)
+        && isValidLearnerProfile(incoming(), userId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(userId)
+        && isOwner(userId)
+        && isValidLearnerProfile(incoming(), userId)
+        && incoming().userId == existing().userId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'email',
+          'name',
+          'xp',
+          'streak',
+          'hearts',
+          'maxHearts',
+          'lastStudyDate',
+          'targetLevel',
+          'quizCorrectTotal',
+          'recentQuizResults',
+          'srsProgress',
+          'heatmapHistory',
+          'bookmarkedPhrases',
+          'unlockedAchievements',
+          'masteredItemIds',
+          'streakFreezes',
+          'streakFreezeHistory',
+          'dailyStudyGoalMinutes',
+          'updatedAt'
+        ]);
+      allow delete: if false;
+
+      match /contactInquiries/{inquiryId} {
+        allow get: if isValidId(userId) && isValidId(inquiryId) && isOwner(userId);
+        allow list: if isValidId(userId) && isOwner(userId) && resource.data.userId == request.auth.uid;
+        allow create: if isValidId(userId)
+          && isValidId(inquiryId)
+          && isOwner(userId)
+          && exists(/databases/$(database)/documents/learnerProfiles/$(userId))
+          && isValidContactInquiry(incoming(), userId)
+          && incoming().createdAt == request.time;
+        allow update, delete: if false;
+      }
+
+      match /newsletterPreferences/{prefId} {
+        allow get: if isValidId(userId) && isValidId(prefId) && isOwner(userId);
+        allow list: if isValidId(userId) && isOwner(userId) && resource.data.userId == request.auth.uid;
+        allow create: if isValidId(userId)
+          && isValidId(prefId)
+          && isOwner(userId)
+          && exists(/databases/$(database)/documents/learnerProfiles/$(userId))
+          && isValidNewsletterPreference(incoming(), userId)
+          && incoming().updatedAt == request.time;
+        allow update: if isValidId(userId)
+          && isValidId(prefId)
+          && isOwner(userId)
+          && exists(/databases/$(database)/documents/learnerProfiles/$(userId))
+          && isValidNewsletterPreference(incoming(), userId)
+          && incoming().userId == existing().userId
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['email', 'subscribed', 'updatedAt']);
+        allow delete: if false;
+      }
+    }
+
+    // Public non-PII leaderboard entries
+    match /leaderboardPublic/{userId} {
+      allow get: if isValidId(userId);
+      allow list: if true;
+      allow create: if isValidId(userId)
+        && isOwner(userId)
+        && isValidLeaderboardEntry(incoming(), userId)
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(userId)
+        && isOwner(userId)
+        && isValidLeaderboardEntry(incoming(), userId)
+        && incoming().userId == existing().userId
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'displayName',
+          'targetLevel',
+          'xp',
+          'streak',
+          'kanjiLearned',
+          'updatedAt'
+        ]);
+      allow delete: if false;
+    }
+  }
+}

@@ -1,0 +1,213 @@
+{
+  "entities": {
+    "LearnerProfile": {
+      "title": "LearnerProfile",
+      "description": "Authenticated learner progress, SRS intervals, daily goals, and study history synced across devices.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Firebase Auth UID of the profile owner."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "minLength": 3,
+          "maxLength": 160,
+          "description": "Normalized email address of the learner."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "description": "Display name of the learner."
+        },
+        "xp": {
+          "type": "integer",
+          "description": "Total earned AkuJin XP."
+        },
+        "streak": {
+          "type": "integer",
+          "description": "Current daily study streak in days."
+        },
+        "hearts": {
+          "type": "integer",
+          "description": "Current practice hearts (0 to maxHearts)."
+        },
+        "maxHearts": {
+          "type": "integer",
+          "description": "Maximum heart capacity."
+        },
+        "targetLevel": {
+          "type": "string",
+          "enum": ["N5", "N4", "N3", "N2", "N1"],
+          "description": "Current JLPT focus track."
+        },
+        "dailyStudyGoalMinutes": {
+          "type": "integer",
+          "enum": [5, 15, 30],
+          "description": "Daily study goal in minutes."
+        },
+        "streakFreezes": {
+          "type": "integer",
+          "description": "Number of active 1-day streak freezes."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the profile was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of the latest sync."
+        }
+      },
+      "required": [
+        "userId",
+        "email",
+        "name",
+        "xp",
+        "streak",
+        "hearts",
+        "maxHearts",
+        "targetLevel",
+        "dailyStudyGoalMinutes",
+        "streakFreezes",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "LeaderboardEntry": {
+      "title": "LeaderboardEntry",
+      "description": "Public non-PII leaderboard summary for a learner.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "targetLevel": {
+          "type": "string",
+          "enum": ["N5", "N4", "N3", "N2", "N1"]
+        },
+        "xp": {
+          "type": "integer"
+        },
+        "streak": {
+          "type": "integer"
+        },
+        "kanjiLearned": {
+          "type": "integer"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "userId",
+        "displayName",
+        "targetLevel",
+        "xp",
+        "streak",
+        "kanjiLearned",
+        "updatedAt"
+      ]
+    },
+    "ContactInquiry": {
+      "title": "ContactInquiry",
+      "description": "Support or curriculum inquiry submitted by an authenticated learner.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "minLength": 3,
+          "maxLength": 160
+        },
+        "mobile": {
+          "type": "string",
+          "minLength": 6,
+          "maxLength": 24
+        },
+        "message": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 2000
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["userId", "name", "email", "mobile", "message", "createdAt"]
+    },
+    "NewsletterPreference": {
+      "title": "NewsletterPreference",
+      "description": "Newsletter subscription record scoped to an authenticated learner.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "minLength": 3,
+          "maxLength": 160
+        },
+        "subscribed": {
+          "type": "boolean"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["userId", "email", "subscribed", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/learnerProfiles/{userId}": {
+      "schema": { "$ref": "#/entities/LearnerProfile" },
+      "description": "Owner-isolated learner progress and PII profile document."
+    },
+    "/leaderboardPublic/{userId}": {
+      "schema": { "$ref": "#/entities/LeaderboardEntry" },
+      "description": "Publicly readable non-PII leaderboard summaries."
+    },
+    "/learnerProfiles/{userId}/contactInquiries/{inquiryId}": {
+      "schema": { "$ref": "#/entities/ContactInquiry" },
+      "description": "Private support questions submitted by the profile owner."
+    },
+    "/learnerProfiles/{userId}/newsletterPreferences/{prefId}": {
+      "schema": { "$ref": "#/entities/NewsletterPreference" },
+      "description": "Newsletter opt-in preference for the profile owner."
+    }
+  }
+}

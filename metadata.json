@@ -1,0 +1,6 @@
+{
+  "name": "AkuJin — JLPT N5 to N1 Japanese Mastery",
+  "description": "Interactive Japanese language learning platform from JLPT N5 to N1 with spaced repetition Kanji, Textbook vs. Anime speech slider, real-life Tokyo scenarios, AI pronunciation feedback, and offline cloud sync.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
