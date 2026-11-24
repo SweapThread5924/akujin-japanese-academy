@@ -1605,7 +1605,10 @@ export const SCENARIOS: ScenarioModule[] = [
 export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'first_kanji', title: 'First Kanji Etched', japaneseStamp: '初漢', description: 'Review and pass your first Kanji in SRS.', xpBonus: 50 },
   { id: 'kanji_5', title: 'Five Radicals Mastery', japaneseStamp: '五字', description: 'Learn 5+ Kanji across JLPT levels.', xpBonus: 120 },
+  { id: 'kanji_25', title: 'Twenty-Five Kanji Scholar', japaneseStamp: '廿五', description: 'Master 25+ Kanji in spaced repetition.', xpBonus: 200 },
+  { id: 'kanji_100', title: 'Centurion Kanji Master', japaneseStamp: '百漢', description: 'Master 100+ Kanji across JLPT levels.', xpBonus: 400 },
   { id: 'streak_3', title: 'Three-Day Momentum', japaneseStamp: '三日', description: 'Maintain a 3-day study streak.', xpBonus: 75 },
+  { id: 'streak_5', title: 'Five-Day Flame Streak', japaneseStamp: '五日', description: 'Maintain a 5-day continuous study streak.', xpBonus: 150 },
   { id: 'streak_7', title: 'Torii Seven-Day Streak', japaneseStamp: '七日', description: 'Study Japanese 7 days in a row.', xpBonus: 200 },
   { id: 'quiz_5', title: 'Exam Sharpshooter', japaneseStamp: '合格', description: 'Answer 5+ adaptive JLPT questions correctly.', xpBonus: 100 },
   { id: 'phrasebook_3', title: 'Tokyo Fieldbook', japaneseStamp: '手帳', description: 'Bookmark 3+ phrases for offline review.', xpBonus: 60 },

@@ -5,7 +5,8 @@ export type SoundEffectKind =
   | 'quiz-correct'
   | 'quiz-wrong'
   | 'srs-good'
-  | 'srs-again';
+  | 'srs-again'
+  | 'achievement';
 
 export interface ToneStepSpec {
   frequencyStart: number;
@@ -110,6 +111,41 @@ export function getSoundEffectSpec(kind: SoundEffectKind): ToneStepSpec[] {
           type: 'sine',
         },
       ];
+    case 'achievement':
+      return [
+        {
+          frequencyStart: 523.25, // C5
+          frequencyEnd: 523.25,
+          durationMs: 100,
+          delayMs: 0,
+          gain: 0.09,
+          type: 'triangle',
+        },
+        {
+          frequencyStart: 659.25, // E5
+          frequencyEnd: 659.25,
+          durationMs: 100,
+          delayMs: 75,
+          gain: 0.1,
+          type: 'triangle',
+        },
+        {
+          frequencyStart: 783.99, // G5
+          frequencyEnd: 783.99,
+          durationMs: 120,
+          delayMs: 150,
+          gain: 0.11,
+          type: 'sine',
+        },
+        {
+          frequencyStart: 1046.5, // C6
+          frequencyEnd: 1046.5,
+          durationMs: 260,
+          delayMs: 230,
+          gain: 0.12,
+          type: 'sine',
+        },
+      ];
   }
 }
 
@@ -197,4 +233,8 @@ export function playQuizFeedbackSound(enabled: boolean, isCorrect: boolean): boo
 
 export function playSrsRatingSound(enabled: boolean, isPositive: boolean): boolean {
   return playSoundEffect(isPositive ? 'srs-good' : 'srs-again', enabled);
+}
+
+export function playAchievementSound(enabled: boolean): boolean {
+  return playSoundEffect('achievement', enabled);
 }

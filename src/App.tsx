@@ -31,14 +31,24 @@ import {
   LeaderboardSyncSection,
   type LeaderboardRow,
 } from './components/LeaderboardSyncSection';
+import { ACHIEVEMENTS } from './data/curriculumData';
 import {
   calculateSm2Review,
   createInitialSrsProgress,
-  evaluateUnlockedAchievements,
   type JlptLevel,
   type SrsCardProgress,
   type SrsRating,
 } from './utils/srsEngine';
+import {
+  createAchievementToastItem,
+  createStandardToastItem,
+  detectNewMilestoneAchievements,
+  dismissToastItem,
+  enqueueToastItems,
+  sanitizeUnlockedAchievements,
+  type ToastNotificationItem,
+} from './utils/achievementToast';
+import { ToastNotificationHost } from './components/ToastNotificationHost';
 import {
   purchaseStreakFreeze,
   resolveStreakOnStudy,
@@ -55,6 +65,7 @@ import {
 import {
   SOUND_PREF_STORAGE_KEY,
   parseStoredSoundPreference,
+  playAchievementSound,
   playCardFlipSound,
   playQuizFeedbackSound,
   primeAudioContext,
@@ -156,6 +167,7 @@ function normalizeLearnerState(raw: Partial<LearnerState> & { profileId?: string
     hearts: typeof raw.hearts === 'number' ? Math.max(0, raw.hearts) : 0,
     maxHearts: typeof raw.maxHearts === 'number' ? Math.max(1, raw.maxHearts) : 5,
     masteredItemIds: Array.isArray(raw.masteredItemIds) ? raw.masteredItemIds : [],
+    unlockedAchievements: sanitizeUnlockedAchievements(raw.unlockedAchievements),
     streakFreezes: typeof raw.streakFreezes === 'number' ? Math.max(0, raw.streakFreezes) : 0,
     streakFreezeHistory: Array.isArray(raw.streakFreezeHistory) ? raw.streakFreezeHistory : [],
     dailyStudyGoalMinutes: normalizeDailyStudyGoal(raw.dailyStudyGoalMinutes),
@@ -221,8 +233,10 @@ export default function App() {
   const [discussions, setDiscussions] = useState<DiscussionItem[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardRow[]>([]);
   const [lastOfflineSyncAt, setLastOfflineSyncAt] = useState<string | null>(null);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const toastTimerRef = useRef<number | null>(null);
+  const [toasts, setToasts] = useState<ToastNotificationItem[]>([]);
+  const toastTimersRef = useRef<Map<string, number>>(new Map());
+  const toastDurationMapRef = useRef<Map<string, number>>(new Map());
+  const knownUnlockedRef = useRef<Set<string>>(new Set());
 
   // Newsletter state
   const [newsletterEmail, setNewsletterEmail] = useState('');
@@ -231,15 +245,77 @@ export default function App() {
   const [newsletterError, setNewsletterError] = useState<string | null>(null);
   const [subscribing, setSubscribing] = useState(false);
 
-  const showToast = useCallback((msg: string) => {
-    setToastMessage(msg);
-    if (toastTimerRef.current !== null) {
-      window.clearTimeout(toastTimerRef.current);
+  const dismissToast = useCallback((id: string) => {
+    const existingTimer = toastTimersRef.current.get(id);
+    if (existingTimer !== undefined) {
+      window.clearTimeout(existingTimer);
+      toastTimersRef.current.delete(id);
     }
-    toastTimerRef.current = window.setTimeout(() => {
-      setToastMessage((prev) => (prev === msg ? null : prev));
-      toastTimerRef.current = null;
-    }, 3200);
+    toastDurationMapRef.current.delete(id);
+    setToasts((prev) => dismissToastItem(prev, id));
+  }, []);
+
+  const scheduleToastDismiss = useCallback(
+    (id: string, durationMs: number) => {
+      const prevTimer = toastTimersRef.current.get(id);
+      if (prevTimer !== undefined) {
+        window.clearTimeout(prevTimer);
+      }
+      toastDurationMapRef.current.set(id, durationMs);
+      const timerId = window.setTimeout(() => {
+        toastTimersRef.current.delete(id);
+        toastDurationMapRef.current.delete(id);
+        setToasts((prev) => dismissToastItem(prev, id));
+      }, durationMs);
+      toastTimersRef.current.set(id, timerId);
+    },
+    []
+  );
+
+  const pauseToastTimer = useCallback((id: string) => {
+    const timer = toastTimersRef.current.get(id);
+    if (timer !== undefined) {
+      window.clearTimeout(timer);
+      toastTimersRef.current.delete(id);
+    }
+  }, []);
+
+  const resumeToastTimer = useCallback(
+    (id: string) => {
+      const durationMs = toastDurationMapRef.current.get(id);
+      if (durationMs !== undefined && !toastTimersRef.current.has(id)) {
+        scheduleToastDismiss(id, Math.min(durationMs, 2500));
+      }
+    },
+    [scheduleToastDismiss]
+  );
+
+  const enqueueToasts = useCallback(
+    (items: ToastNotificationItem[]) => {
+      if (items.length === 0) return;
+      setToasts((prev) => enqueueToastItems(prev, items));
+      for (const item of items) {
+        scheduleToastDismiss(item.id, item.durationMs);
+      }
+    },
+    [scheduleToastDismiss]
+  );
+
+  const showToast = useCallback(
+    (msg: string) => {
+      enqueueToasts([createStandardToastItem(msg)]);
+    },
+    [enqueueToasts]
+  );
+
+  useEffect(() => {
+    const timers = toastTimersRef.current;
+    return () => {
+      for (const timer of timers.values()) {
+        window.clearTimeout(timer);
+      }
+      timers.clear();
+    };
   }, []);
 
   useEffect(() => {
@@ -330,6 +406,7 @@ export default function App() {
               profileId: `fb-${user.uid}`,
               email: user.email,
             });
+            knownUnlockedRef.current = new Set(loaded.unlockedAchievements);
             setLearner(loaded);
             setSelectedLevel(loaded.targetLevel || 'N5');
             const sess: StoredSession = {
@@ -377,6 +454,7 @@ export default function App() {
       .then((data) => {
         if (data.profile && !isGoogleSession) {
           const loaded = normalizeLearnerState(data.profile);
+          knownUnlockedRef.current = new Set(loaded.unlockedAchievements);
           setLearner(loaded);
           setSelectedLevel((loaded.targetLevel as JlptLevel) || 'N5');
           if (!loaded.onboardingCompleted) {
@@ -389,6 +467,7 @@ export default function App() {
       .catch(() => {
         if (cached?.payload && cached.payload.learner?.profileId === activeProfileId) {
           const loaded = normalizeLearnerState(cached.payload.learner);
+          knownUnlockedRef.current = new Set(loaded.unlockedAchievements);
           setLearner(loaded);
           setDiscussions(cached.payload.discussions);
           setLeaderboard(cached.payload.leaderboard);
@@ -404,6 +483,33 @@ export default function App() {
       });
   }, [session?.profileId, session?.authType]);
 
+  // Trigger animated 'New Achievement Unlocked' cards when learner.unlockedAchievements grows
+  useEffect(() => {
+    if (!bootstrapReady) {
+      knownUnlockedRef.current = new Set(learner.unlockedAchievements);
+      return;
+    }
+    const newlyUnlockedIds = learner.unlockedAchievements.filter(
+      (id) => !knownUnlockedRef.current.has(id)
+    );
+    if (newlyUnlockedIds.length === 0) return;
+
+    for (const id of newlyUnlockedIds) {
+      knownUnlockedRef.current.add(id);
+    }
+
+    const defsById = new Map(ACHIEVEMENTS.map((d) => [d.id, d]));
+    const cards = newlyUnlockedIds
+      .map((id) => defsById.get(id))
+      .filter((d): d is NonNullable<typeof d> => Boolean(d))
+      .map((def, idx) => createAchievementToastItem(def, Date.now() + idx));
+
+    if (cards.length > 0) {
+      playAchievementSound(soundEnabled);
+      enqueueToasts(cards);
+    }
+  }, [learner.unlockedAchievements, bootstrapReady, soundEnabled, enqueueToasts]);
+
   const persistProgress = useCallback(
     (updater: (prev: LearnerState) => LearnerState) => {
       setLearner((prev) => {
@@ -411,19 +517,18 @@ export default function App() {
         const learnedCount = Object.values(nextDraft.srsProgress).filter(
           (c) => c.repetitions >= 1
         ).length;
-        const badges = evaluateUnlockedAchievements({
+        const achievementEval = detectNewMilestoneAchievements({
           xp: nextDraft.xp,
           streak: nextDraft.streak,
           learnedKanjiCount: learnedCount,
           bookmarkedCount: nextDraft.bookmarkedPhrases.length,
           quizCorrectTotal: nextDraft.quizCorrectTotal,
+          existingUnlockedIds: nextDraft.unlockedAchievements,
         });
-        const mergedBadges = Array.from(
-          new Set([...nextDraft.unlockedAchievements, ...badges])
-        );
         const nextState: LearnerState = {
           ...nextDraft,
-          unlockedAchievements: mergedBadges,
+          xp: achievementEval.finalXp,
+          unlockedAchievements: achievementEval.nextUnlockedIds,
         };
 
         const ts = saveOfflineState({
@@ -725,6 +830,10 @@ export default function App() {
     if (!res.ok) throw new Error(data.error || 'Restore failed');
     if (data.profile) {
       const restoredLevel = (data.profile.targetLevel as JlptLevel) || 'N5';
+      const restoredAchievements = sanitizeUnlockedAchievements(
+        (data.profile as Partial<LearnerState>).unlockedAchievements
+      );
+      knownUnlockedRef.current = new Set(restoredAchievements);
       persistProgress((prev) =>
         normalizeLearnerState({
           ...data.profile,
@@ -822,6 +931,7 @@ export default function App() {
     localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(nextSession));
 
     const nextLearner = normalizeLearnerState(payload.profile as Partial<LearnerState>);
+    knownUnlockedRef.current = new Set(nextLearner.unlockedAchievements);
     setLearner(nextLearner);
     setSelectedLevel(nextLearner.targetLevel || 'N5');
     if (Array.isArray(payload.leaderboard)) {
@@ -854,6 +964,7 @@ export default function App() {
         profileId: nextSession.profileId,
         email: nextSession.email,
       });
+      knownUnlockedRef.current = new Set(syncedState.unlockedAchievements);
       setLearner(syncedState);
       setSelectedLevel(syncedState.targetLevel || 'N5');
       showToast(`Welcome back, ${syncedState.name}! Cloud progress synced.`);
@@ -864,6 +975,7 @@ export default function App() {
         email: nextSession.email,
         name: user.displayName || learner.name,
       });
+      knownUnlockedRef.current = new Set(syncedState.unlockedAchievements);
       setLearner(syncedState);
       await syncLearnerProfileToFirestore(user, syncedState);
       showToast(`Google Cloud Sync enabled for ${nextSession.email}!`);
@@ -908,6 +1020,7 @@ export default function App() {
       // Offline fallback handled via saveOfflineState below
     }
     localStorage.removeItem(SESSION_STORAGE_KEY);
+    knownUnlockedRef.current = new Set(DEFAULT_STATE.unlockedAchievements);
     setSession(null);
     setLearner(DEFAULT_STATE);
     setSelectedLevel('N5');
@@ -1209,7 +1322,7 @@ export default function App() {
               maxHearts={learner.maxHearts}
               onRestoreHearts={handleRestoreHearts}
               kanjiLearnedCount={
-                Object.values(learner.srsProgress).filter((c) => c.reviewCount > 0).length
+                Object.values(learner.srsProgress).filter((c) => c.repetitions >= 1).length
               }
               masteredItemsCount={learner.masteredItemIds.length}
               bookmarkedCount={learner.bookmarkedPhrases.length}
@@ -1253,7 +1366,7 @@ export default function App() {
               xp={learner.xp}
               streak={learner.streak}
               kanjiLearnedCount={
-                Object.values(learner.srsProgress).filter((c) => c.reviewCount > 0).length
+                Object.values(learner.srsProgress).filter((c) => c.repetitions >= 1).length
               }
               masteredItemsCount={learner.masteredItemIds.length}
               readingSummary={summarizeReadingSpeed(learner.readingSpeedRecords)}
@@ -1302,14 +1415,13 @@ export default function App() {
 
       <BackToTopButton />
 
-      {toastMessage && (
-        <div
-          role="status"
-          className="animate-toast-enter fixed bottom-5 right-5 z-50 rounded-xl bg-[#141413] dark:bg-white text-white dark:text-[#141413] px-4 py-3 text-xs font-semibold shadow-lg"
-        >
-          {toastMessage}
-        </div>
-      )}
+      <ToastNotificationHost
+        toasts={toasts}
+        onDismiss={dismissToast}
+        onPauseTimer={pauseToastTimer}
+        onResumeTimer={resumeToastTimer}
+        onViewAchievements={() => setActiveTab('leaderboard')}
+      />
 
       {/* Editorial Footer + Subscribe to Newsletter + 2026 Copyright */}
       <footer className="relative z-10 border-t border-stone-200 dark:border-zinc-800 bg-white/95 dark:bg-[#101218]/95 backdrop-blur-xs">

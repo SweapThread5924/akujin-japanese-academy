@@ -103,6 +103,28 @@ export function getAchievementSealProgress(
         category: 'Kanji',
       };
     }
+    case 'kanji_25': {
+      const cur = Math.min(25, metrics.learnedKanjiCount);
+      return {
+        current: cur,
+        target: 25,
+        pct: clampPct(cur, 25),
+        progressLabel: `${cur} / 25 Kanji`,
+        sealShape: 'circle',
+        category: 'Kanji',
+      };
+    }
+    case 'kanji_100': {
+      const cur = Math.min(100, metrics.learnedKanjiCount);
+      return {
+        current: cur,
+        target: 100,
+        pct: clampPct(cur, 100),
+        progressLabel: `${cur} / 100 Kanji`,
+        sealShape: 'square',
+        category: 'Kanji',
+      };
+    }
     case 'streak_3': {
       const cur = Math.min(3, metrics.streak);
       return {
@@ -110,6 +132,17 @@ export function getAchievementSealProgress(
         target: 3,
         pct: clampPct(cur, 3),
         progressLabel: `${cur} / 3 days`,
+        sealShape: 'circle',
+        category: 'Streak',
+      };
+    }
+    case 'streak_5': {
+      const cur = Math.min(5, metrics.streak);
+      return {
+        current: cur,
+        target: 5,
+        pct: clampPct(cur, 5),
+        progressLabel: `${cur} / 5 days`,
         sealShape: 'circle',
         category: 'Streak',
       };

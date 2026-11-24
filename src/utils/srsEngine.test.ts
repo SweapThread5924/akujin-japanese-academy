@@ -87,12 +87,15 @@ test('XP ranks, streaks, adaptive quiz difficulty, and register slider tiers beh
   const badges = evaluateUnlockedAchievements({
     xp: 620,
     streak: 7,
-    learnedKanjiCount: 5,
+    learnedKanjiCount: 100,
     bookmarkedCount: 3,
     quizCorrectTotal: 6,
   });
+  assert.ok(badges.includes('streak_5'));
   assert.ok(badges.includes('streak_7'));
   assert.ok(badges.includes('kanji_5'));
+  assert.ok(badges.includes('kanji_25'));
+  assert.ok(badges.includes('kanji_100'));
   assert.ok(badges.includes('xp_500'));
   assert.ok(badges.includes('phrasebook_3'));
 

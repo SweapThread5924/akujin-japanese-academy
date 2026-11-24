@@ -264,9 +264,12 @@ export function evaluateUnlockedAchievements(params: {
 }): string[] {
   const unlocked: string[] = [];
   if (params.streak >= 3) unlocked.push('streak_3');
+  if (params.streak >= 5) unlocked.push('streak_5');
   if (params.streak >= 7) unlocked.push('streak_7');
   if (params.learnedKanjiCount >= 1) unlocked.push('first_kanji');
   if (params.learnedKanjiCount >= 5) unlocked.push('kanji_5');
+  if (params.learnedKanjiCount >= 25) unlocked.push('kanji_25');
+  if (params.learnedKanjiCount >= 100) unlocked.push('kanji_100');
   if (params.xp >= 500) unlocked.push('xp_500');
   if (params.xp >= 1500) unlocked.push('xp_1500');
   if (params.bookmarkedCount >= 3) unlocked.push('phrasebook_3');

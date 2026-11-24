@@ -55,6 +55,10 @@
           "type": "integer",
           "description": "Number of active 1-day streak freezes."
         },
+        "unlockedAchievements": {
+          "type": "array",
+          "description": "List of unlocked milestone achievement IDs earned by the learner."
+        },
         "readingSpeedRecords": {
           "type": "array",
           "description": "Up to 50 recent reading comprehension speed (CPM) records."

@@ -559,9 +559,79 @@ html {
   will-change: transform, opacity;
 }
 
+/* Achievement Unlocked Toast Animations */
+@keyframes akujin-achievement-enter {
+  0% {
+    opacity: 0;
+    transform: translate3d(24px, 16px, 0) scale(0.9);
+  }
+  65% {
+    opacity: 1;
+    transform: translate3d(-2px, -2px, 0) scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+.animate-achievement-toast-enter {
+  animation: akujin-achievement-enter 440ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes akujin-hanko-stamp {
+  0% {
+    opacity: 0;
+    transform: scale(1.45) rotate(12deg);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(0.92) rotate(-5deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(-3deg);
+  }
+}
+
+.animate-hanko-stamp {
+  animation: akujin-hanko-stamp 460ms 120ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes akujin-achievement-shimmer {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(120%);
+  }
+}
+
+.animate-achievement-shimmer {
+  animation: akujin-achievement-shimmer 1.15s 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes akujin-toast-progress {
+  0% {
+    transform: scaleX(1);
+  }
+  100% {
+    transform: scaleX(0);
+  }
+}
+
+.animate-toast-progress {
+  transform-origin: left center;
+  animation: akujin-toast-progress linear forwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .akujin-sakura-petal,
-  .animate-welcome-pop {
+  .animate-welcome-pop,
+  .animate-achievement-toast-enter,
+  .animate-hanko-stamp,
+  .animate-achievement-shimmer,
+  .animate-toast-progress {
     animation: none !important;
   }
   .akujin-theme-icon {

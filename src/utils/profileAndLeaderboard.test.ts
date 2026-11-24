@@ -53,4 +53,12 @@ test('getAchievementSealProgress returns accurate live progress percentages for 
 
   const quiz5 = getAchievementSealProgress('quiz_5', metrics);
   assert.equal(quiz5.pct, 100);
+
+  const streak5 = getAchievementSealProgress('streak_5', metrics);
+  assert.equal(streak5.pct, 40);
+  assert.equal(streak5.progressLabel, '2 / 5 days');
+
+  const kanji100 = getAchievementSealProgress('kanji_100', metrics);
+  assert.equal(kanji100.pct, 3);
+  assert.equal(kanji100.progressLabel, '3 / 100 Kanji');
 });
