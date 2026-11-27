@@ -39,8 +39,11 @@ interface KanjiDrawingBoardProps {
   darkMode: boolean;
   soundEnabled: boolean;
   initialMode?: KanjiPracticeMode;
+  requestedPracticeMode?: { mode: KanjiPracticeMode; nonce: number } | null;
   deckIndex?: number;
   deckTotal?: number;
+  totalCatalogCount?: number;
+  onShowAllKanji?: () => void;
   onPrevKanji: () => void;
   onNextKanji: () => void;
   onGainXp: (amount: number) => void;
@@ -72,8 +75,11 @@ export const KanjiDrawingBoard: React.FC<KanjiDrawingBoardProps> = ({
   darkMode,
   soundEnabled,
   initialMode = 'stroke-order',
+  requestedPracticeMode = null,
   deckIndex,
   deckTotal,
+  totalCatalogCount,
+  onShowAllKanji,
   onPrevKanji,
   onNextKanji,
   onGainXp,
@@ -149,6 +155,15 @@ export const KanjiDrawingBoard: React.FC<KanjiDrawingBoardProps> = ({
     setHapticPulseCount(0);
     setTraceXpAwardedId(null);
   }, [kanji.id]);
+
+  useEffect(() => {
+    if (!requestedPracticeMode) return;
+    isDrawingRef.current = false;
+    activePointsRef.current = [];
+    activeTraceRef.current = [];
+    ripplesRef.current = [];
+    setPracticeMode(requestedPracticeMode.mode);
+  }, [requestedPracticeMode]);
 
   const triggerWrapperHaptic = useCallback((kind: 'pulse' | 'nudge') => {
     setHapticMotion(null);
@@ -717,13 +732,14 @@ export const KanjiDrawingBoard: React.FC<KanjiDrawingBoardProps> = ({
 
   return (
     <section
+      id="kanji-drawing-board"
       aria-label="Kanji Stroke Order Drawing Board"
-      className="rounded-2xl bg-white dark:bg-[#16181F] border border-stone-200 dark:border-zinc-800 p-6 sm:p-8 space-y-6"
+      className="scroll-mt-24 rounded-2xl bg-white dark:bg-[#16181F] border border-stone-200 dark:border-zinc-800 p-4 sm:p-6 md:p-8 space-y-6"
     >
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div className="space-y-1">
+        <div className="space-y-1 min-w-0">
           <div className="flex items-center gap-2 text-xs font-medium text-[#D92525] dark:text-rose-400">
-            <PenTool className="w-3.5 h-3.5" aria-hidden="true" />
+            <PenTool className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
             <span>
               {practiceMode === 'stroke-order'
                 ? '筆順練習 · HTML5 Canvas Stroke Practice'
@@ -754,7 +770,7 @@ export const KanjiDrawingBoard: React.FC<KanjiDrawingBoardProps> = ({
               data-testid="mode-stroke-order"
               aria-selected={practiceMode === 'stroke-order'}
               onClick={() => handleSwitchMode('stroke-order')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap shrink-0 cursor-pointer transition-colors ${
+              className={`min-h-[40px] px-3.5 py-2 rounded-lg text-xs font-semibold whitespace-nowrap shrink-0 cursor-pointer transition-colors ${
                 practiceMode === 'stroke-order'
                   ? 'bg-[#D92525] text-white'
                   : 'text-stone-600 dark:text-zinc-300 hover:text-[#141413] dark:hover:text-white'
@@ -768,7 +784,7 @@ export const KanjiDrawingBoard: React.FC<KanjiDrawingBoardProps> = ({
               data-testid="mode-precision-trace"
               aria-selected={practiceMode === 'precision-trace'}
               onClick={() => handleSwitchMode('precision-trace')}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap shrink-0 cursor-pointer transition-colors ${
+              className={`inline-flex items-center gap-1.5 min-h-[40px] px-3.5 py-2 rounded-lg text-xs font-semibold whitespace-nowrap shrink-0 cursor-pointer transition-colors ${
                 practiceMode === 'precision-trace'
                   ? 'bg-[#D92525] text-white'
                   : 'text-stone-600 dark:text-zinc-300 hover:text-[#141413] dark:hover:text-white'
@@ -779,20 +795,33 @@ export const KanjiDrawingBoard: React.FC<KanjiDrawingBoardProps> = ({
             </button>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {typeof deckIndex === 'number' && typeof deckTotal === 'number' && (
               <span
                 data-testid="canvas-deck-counter"
-                className="px-2.5 py-1 rounded-lg bg-stone-100 dark:bg-[#101218] border border-stone-200 dark:border-zinc-800 text-[11px] font-mono-nums font-semibold text-stone-600 dark:text-zinc-300 whitespace-nowrap"
+                className="inline-flex items-center min-h-[40px] px-3 py-1.5 rounded-lg bg-stone-100 dark:bg-[#101218] border border-stone-200 dark:border-zinc-800 text-[11px] font-mono-nums font-semibold text-stone-600 dark:text-zinc-300 whitespace-nowrap"
               >
                 {(deckIndex + 1).toLocaleString()} / {deckTotal.toLocaleString()}
               </span>
             )}
+            {typeof deckTotal === 'number' &&
+              typeof totalCatalogCount === 'number' &&
+              deckTotal < totalCatalogCount &&
+              onShowAllKanji && (
+                <button
+                  type="button"
+                  data-testid="canvas-show-all-kanji"
+                  onClick={onShowAllKanji}
+                  className="min-h-[40px] px-3 py-1.5 rounded-lg border border-[#D92525]/40 bg-rose-50/70 dark:bg-rose-950/30 text-[11px] font-semibold text-[#D92525] dark:text-rose-300 hover:bg-rose-100/80 whitespace-nowrap cursor-pointer"
+                >
+                  All {totalCatalogCount.toLocaleString()}
+                </button>
+              )}
             <button
               type="button"
               onClick={onPrevKanji}
               aria-label="Previous Kanji"
-              className="akujin-btn-press inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-stone-200 dark:border-zinc-700 text-xs font-medium text-stone-700 dark:text-zinc-200 hover:border-[#D92525]/50 whitespace-nowrap shrink-0 cursor-pointer"
+              className="akujin-btn-press inline-flex items-center gap-1 min-h-[40px] px-3.5 py-2 rounded-lg border border-stone-200 dark:border-zinc-700 text-xs font-medium text-stone-700 dark:text-zinc-200 hover:border-[#D92525]/50 whitespace-nowrap shrink-0 cursor-pointer"
             >
               <ChevronLeft className="w-3.5 h-3.5" aria-hidden="true" />
               Prev Kanji
@@ -801,7 +830,7 @@ export const KanjiDrawingBoard: React.FC<KanjiDrawingBoardProps> = ({
               type="button"
               onClick={onNextKanji}
               aria-label="Next Kanji"
-              className="akujin-btn-press inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-stone-200 dark:border-zinc-700 text-xs font-medium text-stone-700 dark:text-zinc-200 hover:border-[#D92525]/50 whitespace-nowrap shrink-0 cursor-pointer"
+              className="akujin-btn-press inline-flex items-center gap-1 min-h-[40px] px-3.5 py-2 rounded-lg border border-stone-200 dark:border-zinc-700 text-xs font-medium text-stone-700 dark:text-zinc-200 hover:border-[#D92525]/50 whitespace-nowrap shrink-0 cursor-pointer"
             >
               Next Kanji
               <ChevronRight className="w-3.5 h-3.5" aria-hidden="true" />
@@ -810,13 +839,13 @@ export const KanjiDrawingBoard: React.FC<KanjiDrawingBoardProps> = ({
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-12 gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left: Interactive HTML5 Canvas with Haptic Frame */}
-        <div className="lg:col-span-5 flex flex-col items-center space-y-3">
+        <div className="lg:col-span-5 min-w-0 flex flex-col items-center space-y-3">
           <div
             data-testid="kanji-canvas-frame"
             onAnimationEnd={() => setHapticMotion(null)}
-            className={`relative rounded-xl border overflow-hidden bg-[#FCFBF8] dark:bg-[#101218] transition-colors ${zoneBorderClass} ${wrapperMotionClass}`}
+            className={`relative w-[min(280px,100%)] rounded-xl border overflow-hidden bg-[#FCFBF8] dark:bg-[#101218] transition-colors ${zoneBorderClass} ${wrapperMotionClass}`}
           >
             <canvas
               ref={canvasRef}
@@ -826,8 +855,7 @@ export const KanjiDrawingBoard: React.FC<KanjiDrawingBoardProps> = ({
               onPointerMove={handlePointerMove}
               onPointerUp={finishStroke}
               onPointerCancel={finishStroke}
-              style={{ width: CANVAS_CSS_SIZE, height: CANVAS_CSS_SIZE }}
-              className="block touch-none cursor-crosshair select-none"
+              className="block w-full aspect-square touch-none cursor-crosshair select-none"
             />
           </div>
 
@@ -838,7 +866,7 @@ export const KanjiDrawingBoard: React.FC<KanjiDrawingBoardProps> = ({
                   type="button"
                   onClick={() => setShowGuide((g) => !g)}
                   aria-pressed={showGuide}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium whitespace-nowrap cursor-pointer transition-colors ${
+                  className={`inline-flex items-center gap-1.5 min-h-[40px] px-3 py-2 rounded-lg border text-xs font-medium whitespace-nowrap cursor-pointer transition-colors ${
                     showGuide
                       ? 'border-[#D92525]/50 text-[#D92525] dark:text-rose-400 bg-rose-50/40 dark:bg-rose-950/20'
                       : 'border-stone-200 dark:border-zinc-700 text-stone-600 dark:text-zinc-300'
@@ -856,7 +884,7 @@ export const KanjiDrawingBoard: React.FC<KanjiDrawingBoardProps> = ({
                   type="button"
                   onClick={() => setShowNextHint((h) => !h)}
                   aria-pressed={showNextHint}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium whitespace-nowrap cursor-pointer transition-colors ${
+                  className={`inline-flex items-center gap-1.5 min-h-[40px] px-3 py-2 rounded-lg border text-xs font-medium whitespace-nowrap cursor-pointer transition-colors ${
                     showNextHint
                       ? 'border-[#D92525]/50 text-[#D92525] dark:text-rose-400 bg-rose-50/40 dark:bg-rose-950/20'
                       : 'border-stone-200 dark:border-zinc-700 text-stone-600 dark:text-zinc-300'
@@ -870,7 +898,7 @@ export const KanjiDrawingBoard: React.FC<KanjiDrawingBoardProps> = ({
                 type="button"
                 onClick={() => setShowIdealRef((v) => !v)}
                 aria-pressed={showIdealRef}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium whitespace-nowrap cursor-pointer transition-colors ${
+                className={`inline-flex items-center gap-1.5 min-h-[40px] px-3 py-2 rounded-lg border text-xs font-medium whitespace-nowrap cursor-pointer transition-colors ${
                   showIdealRef
                     ? 'border-[#D92525]/50 text-[#D92525] dark:text-rose-400 bg-rose-50/40 dark:bg-rose-950/20'
                     : 'border-stone-200 dark:border-zinc-700 text-stone-600 dark:text-zinc-300'
@@ -893,7 +921,7 @@ export const KanjiDrawingBoard: React.FC<KanjiDrawingBoardProps> = ({
                   ? verifiedStrokes.length === 0 && !rejectedStroke
                   : traceStrokes.length === 0
               }
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-stone-200 dark:border-zinc-700 text-xs font-medium text-stone-700 dark:text-zinc-200 hover:bg-stone-50 dark:hover:bg-zinc-800 disabled:opacity-45 whitespace-nowrap cursor-pointer disabled:cursor-default"
+              className="inline-flex items-center gap-1 min-h-[40px] px-3 py-2 rounded-lg border border-stone-200 dark:border-zinc-700 text-xs font-medium text-stone-700 dark:text-zinc-200 hover:bg-stone-50 dark:hover:bg-zinc-800 disabled:opacity-45 whitespace-nowrap cursor-pointer disabled:cursor-default"
             >
               <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
               Undo
@@ -907,7 +935,7 @@ export const KanjiDrawingBoard: React.FC<KanjiDrawingBoardProps> = ({
                   ? verifiedStrokes.length === 0 && !rejectedStroke && !lastResult
                   : traceStrokes.length === 0 && liveZone === null
               }
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-stone-200 dark:border-zinc-700 text-xs font-medium text-stone-700 dark:text-zinc-200 hover:bg-stone-50 dark:hover:bg-zinc-800 disabled:opacity-45 whitespace-nowrap cursor-pointer disabled:cursor-default"
+              className="inline-flex items-center gap-1 min-h-[40px] px-3 py-2 rounded-lg border border-stone-200 dark:border-zinc-700 text-xs font-medium text-stone-700 dark:text-zinc-200 hover:bg-stone-50 dark:hover:bg-zinc-800 disabled:opacity-45 whitespace-nowrap cursor-pointer disabled:cursor-default"
             >
               <Eraser className="w-3.5 h-3.5" aria-hidden="true" />
               Clear
@@ -922,7 +950,7 @@ export const KanjiDrawingBoard: React.FC<KanjiDrawingBoardProps> = ({
             data-verified-strokes={verifiedStrokes.length}
             data-total-strokes={totalStrokes}
             data-last-status={lastResult ? (lastResult.passed ? 'passed' : lastResult.reason) : 'idle'}
-            className="lg:col-span-7 space-y-5"
+            className="lg:col-span-7 min-w-0 space-y-5"
           >
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs">
@@ -981,10 +1009,10 @@ export const KanjiDrawingBoard: React.FC<KanjiDrawingBoardProps> = ({
             </div>
 
             {isStrokeOrderComplete ? (
-              <div className="rounded-xl border border-emerald-600/40 bg-emerald-50 dark:bg-emerald-950/30 p-4 flex items-center justify-between gap-4">
-                <div className="space-y-1">
+              <div className="rounded-xl border border-emerald-600/40 bg-emerald-50 dark:bg-emerald-950/30 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1 min-w-0">
                   <div className="flex items-center gap-2 text-sm font-bold text-emerald-800 dark:text-emerald-300">
-                    <Sparkles className="w-4 h-4" aria-hidden="true" />
+                    <Sparkles className="w-4 h-4 shrink-0" aria-hidden="true" />
                     <span>
                       Kanji Complete! Avg Accuracy {avgAccuracy}% · +15 XP
                     </span>
@@ -996,7 +1024,7 @@ export const KanjiDrawingBoard: React.FC<KanjiDrawingBoardProps> = ({
                 <button
                   type="button"
                   onClick={handleClear}
-                  className="px-3.5 py-2 rounded-lg bg-[#141413] dark:bg-white text-white dark:text-[#141413] text-xs font-semibold whitespace-nowrap cursor-pointer"
+                  className="min-h-[40px] px-4 py-2 rounded-lg bg-[#141413] dark:bg-white text-white dark:text-[#141413] text-xs font-semibold whitespace-nowrap cursor-pointer self-start sm:self-center"
                 >
                   Practice Again
                 </button>
@@ -1020,7 +1048,7 @@ export const KanjiDrawingBoard: React.FC<KanjiDrawingBoardProps> = ({
                     aria-hidden="true"
                   />
                 )}
-                <div className="text-xs space-y-1">
+                <div className="text-xs space-y-1 min-w-0">
                   <p className="font-semibold">{lastResult.feedback}</p>
                   <p className="opacity-85">
                     Next target: Stroke {expectedIndex + 1} of {totalStrokes}.
@@ -1033,16 +1061,16 @@ export const KanjiDrawingBoard: React.FC<KanjiDrawingBoardProps> = ({
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-3 text-xs pt-1">
-              <div className="p-3 rounded-xl bg-stone-50 dark:bg-[#1B1E28] border border-stone-200/70 dark:border-zinc-800">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
+              <div className="min-w-0 p-3 rounded-xl bg-stone-50 dark:bg-[#1B1E28] border border-stone-200/70 dark:border-zinc-800">
                 <span className="text-stone-500 dark:text-zinc-400">On’yomi</span>
-                <p className="font-jp font-semibold text-[#141413] dark:text-white mt-0.5">
+                <p className="font-jp font-semibold text-[#141413] dark:text-white mt-0.5 break-words">
                   {kanji.onyomi.length > 0 ? kanji.onyomi.map((r) => r.kana).join(' · ') : '—'}
                 </p>
               </div>
-              <div className="p-3 rounded-xl bg-stone-50 dark:bg-[#1B1E28] border border-stone-200/70 dark:border-zinc-800">
+              <div className="min-w-0 p-3 rounded-xl bg-stone-50 dark:bg-[#1B1E28] border border-stone-200/70 dark:border-zinc-800">
                 <span className="text-stone-500 dark:text-zinc-400">Kun’yomi</span>
-                <p className="font-jp font-semibold text-[#141413] dark:text-white mt-0.5">
+                <p className="font-jp font-semibold text-[#141413] dark:text-white mt-0.5 break-words">
                   {kanji.kunyomi.length > 0 ? kanji.kunyomi.map((r) => r.kana).join(' · ') : '—'}
                 </p>
               </div>
@@ -1056,23 +1084,23 @@ export const KanjiDrawingBoard: React.FC<KanjiDrawingBoardProps> = ({
             data-trace-accuracy={traceComparison.shapeAccuracyPct}
             data-trace-complete={traceComparison.passed ? 'true' : 'false'}
             data-haptic-pulses={hapticPulseCount}
-            className="lg:col-span-7 space-y-5"
+            className="lg:col-span-7 min-w-0 space-y-5"
           >
             {/* Ideal Reference Comparison Metrics */}
-            <div className="grid grid-cols-3 gap-3">
-              <div className="p-3.5 rounded-xl bg-stone-50 dark:bg-[#1B1E28] border border-stone-200/70 dark:border-zinc-800">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="min-w-0 p-3.5 rounded-xl bg-stone-50 dark:bg-[#1B1E28] border border-stone-200/70 dark:border-zinc-800">
                 <p className="text-xs text-stone-500 dark:text-zinc-400">Shape Match</p>
                 <p className="text-xl font-bold font-mono-nums text-[#141413] dark:text-white mt-1">
                   {traceComparison.shapeAccuracyPct}%
                 </p>
               </div>
-              <div className="p-3.5 rounded-xl bg-stone-50 dark:bg-[#1B1E28] border border-stone-200/70 dark:border-zinc-800">
+              <div className="min-w-0 p-3.5 rounded-xl bg-stone-50 dark:bg-[#1B1E28] border border-stone-200/70 dark:border-zinc-800">
                 <p className="text-xs text-stone-500 dark:text-zinc-400">Ideal Coverage</p>
                 <p className="text-xl font-bold font-mono-nums text-[#D92525] dark:text-rose-400 mt-1">
                   {traceComparison.coveragePct}%
                 </p>
               </div>
-              <div className="p-3.5 rounded-xl bg-stone-50 dark:bg-[#1B1E28] border border-stone-200/70 dark:border-zinc-800">
+              <div className="min-w-0 p-3.5 rounded-xl bg-stone-50 dark:bg-[#1B1E28] border border-stone-200/70 dark:border-zinc-800">
                 <p className="text-xs text-stone-500 dark:text-zinc-400">Haptic Zone</p>
                 <p
                   className={`text-sm font-bold mt-1.5 ${
@@ -1098,7 +1126,7 @@ export const KanjiDrawingBoard: React.FC<KanjiDrawingBoardProps> = ({
 
             {/* Coverage Bar */}
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-xs text-stone-500 dark:text-zinc-400">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-stone-500 dark:text-zinc-400">
                 <span>Ideal Shape Coverage Target (78%+)</span>
                 <span className="font-mono-nums">
                   {livePrecisionPct !== null
@@ -1118,10 +1146,10 @@ export const KanjiDrawingBoard: React.FC<KanjiDrawingBoardProps> = ({
 
             {/* Haptic Visual Feedback & Ideal Shape Comparison Banner */}
             {traceComparison.passed ? (
-              <div className="rounded-xl border border-emerald-600/40 bg-emerald-50 dark:bg-emerald-950/30 p-4 flex items-center justify-between gap-4">
-                <div className="space-y-1">
+              <div className="rounded-xl border border-emerald-600/40 bg-emerald-50 dark:bg-emerald-950/30 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1 min-w-0">
                   <div className="flex items-center gap-2 text-sm font-bold text-emerald-800 dark:text-emerald-300">
-                    <Sparkles className="w-4 h-4" aria-hidden="true" />
+                    <Sparkles className="w-4 h-4 shrink-0" aria-hidden="true" />
                     <span>
                       Ideal Shape Matched! {traceComparison.compositeScorePct}% Score · +20 XP
                     </span>
@@ -1133,7 +1161,7 @@ export const KanjiDrawingBoard: React.FC<KanjiDrawingBoardProps> = ({
                 <button
                   type="button"
                   onClick={handleClear}
-                  className="px-3.5 py-2 rounded-lg bg-[#141413] dark:bg-white text-white dark:text-[#141413] text-xs font-semibold whitespace-nowrap cursor-pointer"
+                  className="min-h-[40px] px-4 py-2 rounded-lg bg-[#141413] dark:bg-white text-white dark:text-[#141413] text-xs font-semibold whitespace-nowrap cursor-pointer self-start sm:self-center"
                 >
                   Trace Again
                 </button>

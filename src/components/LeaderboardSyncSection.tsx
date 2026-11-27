@@ -946,16 +946,16 @@ export const LeaderboardSyncSection: React.FC<LeaderboardSyncSectionProps> = ({
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-stone-200 dark:border-zinc-800 text-[11px] uppercase tracking-wider text-stone-500 dark:text-zinc-400">
-                  <th className="py-2.5 pr-3 font-semibold">Rank</th>
-                  <th className="py-2.5 pr-3 font-semibold">Learner</th>
-                  <th className="py-2.5 pr-3 font-semibold">Track</th>
-                  <th className="py-2.5 pr-3 font-semibold text-right">Streak</th>
-                  <th className="py-2.5 pr-3 font-semibold text-right">Kanji</th>
+                <tr className="border-b border-stone-200 dark:border-zinc-800 text-[10px] sm:text-[11px] uppercase tracking-wider text-stone-500 dark:text-zinc-400">
+                  <th className="py-2.5 pr-2 sm:pr-3 font-semibold">Rank</th>
+                  <th className="py-2.5 pr-2 sm:pr-3 font-semibold">Learner</th>
+                  <th className="py-2.5 pr-2 sm:pr-3 font-semibold">Track</th>
+                  <th className="py-2.5 pr-2 sm:pr-3 font-semibold text-right">Streak</th>
+                  <th className="py-2.5 pr-2 sm:pr-3 font-semibold text-right">Kanji</th>
                   <th className="py-2.5 font-semibold text-right">XP</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-stone-100 dark:divide-zinc-800/70 text-sm">
+              <tbody className="divide-y divide-stone-100 dark:divide-zinc-800/70 text-xs sm:text-sm">
                 {realLeaderboard.map((row, idx) => {
                   const isMe = row.id === profileId;
                   return (
@@ -968,7 +968,7 @@ export const LeaderboardSyncSection: React.FC<LeaderboardSyncSectionProps> = ({
                           : ''
                       }
                     >
-                      <td className="py-3 pr-3 font-mono-nums text-xs">
+                      <td className="py-3 pr-2 sm:pr-3 font-mono-nums text-[11px] sm:text-xs">
                         <span
                           className={`inline-flex items-center justify-center w-6 h-6 rounded-md font-bold ${
                             idx === 0
@@ -983,28 +983,28 @@ export const LeaderboardSyncSection: React.FC<LeaderboardSyncSectionProps> = ({
                           #{idx + 1}
                         </span>
                       </td>
-                      <td className="py-3 pr-3 text-[#141413] dark:text-white">
-                        <div className="flex items-center gap-2">
-                          <span className="truncate max-w-[140px] sm:max-w-[180px]">
+                      <td className="py-3 pr-2 sm:pr-3 text-[#141413] dark:text-white">
+                        <div className="flex items-center gap-1.5 sm:gap-2">
+                          <span className="truncate max-w-[92px] sm:max-w-[180px]">
                             {row.name}
                           </span>
                           {isMe && (
-                            <span className="px-1.5 py-0.5 rounded bg-[#D92525] text-white text-[10px] font-bold">
+                            <span className="px-1.5 py-0.5 rounded bg-[#D92525] text-white text-[9px] sm:text-[10px] font-bold shrink-0">
                               You
                             </span>
                           )}
                         </div>
                       </td>
-                      <td className="py-3 pr-3 text-xs font-mono-nums text-[#D92525] dark:text-rose-400 whitespace-nowrap">
-                        JLPT {row.targetLevel}
+                      <td className="py-3 pr-2 sm:pr-3 text-[11px] sm:text-xs font-mono-nums text-[#D92525] dark:text-rose-400 whitespace-nowrap">
+                        {row.targetLevel}
                       </td>
-                      <td className="py-3 pr-3 text-right font-mono-nums text-xs text-stone-600 dark:text-zinc-300 whitespace-nowrap">
+                      <td className="py-3 pr-2 sm:pr-3 text-right font-mono-nums text-[11px] sm:text-xs text-stone-600 dark:text-zinc-300 whitespace-nowrap">
                         {row.streak}d
                       </td>
-                      <td className="py-3 pr-3 text-right font-mono-nums text-xs text-stone-600 dark:text-zinc-300">
+                      <td className="py-3 pr-2 sm:pr-3 text-right font-mono-nums text-[11px] sm:text-xs text-stone-600 dark:text-zinc-300">
                         {row.kanjiLearned}
                       </td>
-                      <td className="py-3 text-right font-mono-nums font-bold text-[#141413] dark:text-white">
+                      <td className="py-3 text-right font-mono-nums font-bold text-[#141413] dark:text-white whitespace-nowrap">
                         {row.xp.toLocaleString()}
                       </td>
                     </tr>
@@ -1023,9 +1023,10 @@ export const LeaderboardSyncSection: React.FC<LeaderboardSyncSectionProps> = ({
 
         {/* Right (6 cols): Renewed Japanese Hanko Achievement Seals */}
         <section
+          id="achievements-showcase"
           aria-label="Achievement Seals"
           data-testid="achievement-seals-section"
-          className="lg:col-span-6 rounded-2xl bg-white dark:bg-[#16181F] border border-stone-200 dark:border-zinc-800 p-5 sm:p-6 space-y-5"
+          className="lg:col-span-6 scroll-mt-32 rounded-2xl bg-white dark:bg-[#16181F] border border-stone-200 dark:border-zinc-800 p-5 sm:p-6 space-y-5"
         >
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="space-y-0.5">
@@ -1209,9 +1210,10 @@ export const LeaderboardSyncSection: React.FC<LeaderboardSyncSectionProps> = ({
 
       {/* SECTION 3: REFINED STREAK FREEZE VAULT + FREEZE HISTORY LOG (ZERO OVERLAP) */}
       <section
+        id="streak-status-vault"
         aria-label="Profile Streak Freeze Vault"
         data-testid="streak-freeze-vault-section"
-        className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch"
+        className="scroll-mt-32 grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch"
       >
         {/* Left (7 cols): Streak Freeze Vault */}
         <div className="lg:col-span-7 rounded-2xl bg-white dark:bg-[#16181F] border border-stone-200 dark:border-zinc-800 p-5 sm:p-6 flex flex-col justify-between gap-6">
@@ -1224,15 +1226,21 @@ export const LeaderboardSyncSection: React.FC<LeaderboardSyncSectionProps> = ({
                     <Snowflake className="w-4 h-4 text-sky-600 dark:text-sky-400" aria-hidden="true" />
                   </div>
                   <h2 className="text-lg font-bold text-[#141413] dark:text-white">
-                    Streak Freeze Vault
+                    Study Streak &amp; Freeze Vault
                   </h2>
                 </div>
-                <span
-                  data-testid="freeze-inventory-summary"
-                  className="px-2.5 py-1 rounded-lg bg-sky-50 dark:bg-sky-950/35 border border-sky-200 dark:border-sky-500/30 text-xs font-mono-nums font-semibold text-sky-800 dark:text-sky-300"
-                >
-                  {streakFreezes} / {MAX_ACTIVE_STREAK_FREEZES} Equipped
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-50 dark:bg-rose-950/35 border border-[#D92525]/25 text-xs font-mono-nums font-semibold text-[#D92525] dark:text-rose-300">
+                    <Flame className="w-3.5 h-3.5" aria-hidden="true" />
+                    {streak}d Streak
+                  </span>
+                  <span
+                    data-testid="freeze-inventory-summary"
+                    className="px-2.5 py-1 rounded-lg bg-sky-50 dark:bg-sky-950/35 border border-sky-200 dark:border-sky-500/30 text-xs font-mono-nums font-semibold text-sky-800 dark:text-sky-300"
+                  >
+                    {streakFreezes} / {MAX_ACTIVE_STREAK_FREEZES} Equipped
+                  </span>
+                </div>
               </div>
               <p className="text-xs text-stone-600 dark:text-zinc-300 leading-relaxed">
                 Spend earned XP to equip a 1-day streak buffer. If you miss a daily Japanese study session, an active freeze is automatically consumed to keep your streak intact.

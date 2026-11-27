@@ -47,6 +47,7 @@ interface OverviewSectionProps {
   onMasterItem: (itemId: string, xp: number) => void;
   userEmail?: string;
   learnerName?: string;
+  onOpenGmailWorkspace?: () => void;
 }
 
 const MARQUEE_TERMS = [
@@ -132,6 +133,7 @@ export const OverviewSection: React.FC<OverviewSectionProps> = ({
   onMasterItem,
   userEmail,
   learnerName,
+  onOpenGmailWorkspace,
 }) => {
   const [kanaScript, setKanaScript] = useState<'hiragana' | 'katakana'>('hiragana');
   const [activeKana, setActiveKana] = useState<string | null>(null);
@@ -301,7 +303,7 @@ export const OverviewSection: React.FC<OverviewSectionProps> = ({
       <section
         aria-label="Global JLPT N5 to N1 Dashboard Content Filter"
         data-testid="overview-jlpt-visibility-bar"
-        className="!mt-0 md:sticky md:top-[var(--akujin-header-height,108px)] z-30 border-b border-stone-200/85 dark:border-zinc-800 bg-[#FCFBF8]/95 dark:bg-[#0D0E12]/95 backdrop-blur-md shadow-xs"
+        className="!mt-0 lg:sticky lg:top-[var(--akujin-header-height,108px)] z-30 border-b border-stone-200/85 dark:border-zinc-800 bg-[#FCFBF8]/95 dark:bg-[#0D0E12]/95 backdrop-blur-md shadow-xs"
       >
         <div className="mx-auto max-w-[1280px] px-4 sm:px-6 py-2.5 flex flex-col lg:flex-row lg:items-center justify-between gap-2.5">
           <div className="flex items-start sm:items-center gap-2.5 min-w-0">
@@ -927,7 +929,7 @@ export const OverviewSection: React.FC<OverviewSectionProps> = ({
       <ContactSection
         defaultEmail={userEmail}
         defaultName={learnerName}
-        onOpenGmailWorkspace={() => onNavigateTab('gmail')}
+        onOpenGmailWorkspace={onOpenGmailWorkspace}
       />
 
       {/* Daily Changing Motivational Quote of the Day */}

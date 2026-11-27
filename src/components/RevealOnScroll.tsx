@@ -149,7 +149,7 @@ export function useAutoScrollReveal(
       }
     };
 
-    const registerElement = (el: HTMLElement, idxOffset: number) => {
+    const registerElement = (el: HTMLElement, _idxOffset: number) => {
       if (
         el.hasAttribute('data-reveal-component') ||
         el.dataset.scrollBound === 'true'
@@ -162,11 +162,8 @@ export function useAutoScrollReveal(
 
       const rect = el.getBoundingClientRect();
       if (isElementInitiallyInViewport(rect.top, rect.bottom, window.innerHeight)) {
-        const delay = computeStaggerDelayMs(idxOffset, 50, 260);
-        el.style.transitionDelay = `${delay}ms`;
-        requestAnimationFrame(() => {
-          el.classList.add('is-revealed');
-        });
+        el.style.transitionDelay = '0ms';
+        el.classList.add('is-revealed');
       } else {
         el.classList.remove('is-revealed');
         observer.observe(el);
@@ -187,25 +184,34 @@ export function useAutoScrollReveal(
 
     const revealCurrentlyVisible = () => {
       const vh = window.innerHeight;
-      let visibleIdx = 0;
       root
         .querySelectorAll<HTMLElement>('.akujin-scroll-item:not(.is-revealed)')
         .forEach((el) => {
           const rect = el.getBoundingClientRect();
           if (isElementInitiallyInViewport(rect.top, rect.bottom, vh)) {
-            const delay = computeStaggerDelayMs(visibleIdx++, 45, 220);
-            el.style.transitionDelay = `${delay}ms`;
+            el.style.transitionDelay = '0ms';
             el.classList.add('is-revealed');
             observer.unobserve(el);
           }
         });
     };
 
-    // Re-check after tab-switch scrollTo(0, 0) settles so newly mounted sections are always revealed
+    let scrollCheckRaf: number | null = null;
+    const scheduleVisibleCheck = () => {
+      if (scrollCheckRaf !== null) return;
+      scrollCheckRaf = requestAnimationFrame(() => {
+        scrollCheckRaf = null;
+        revealCurrentlyVisible();
+      });
+    };
+
+    // Re-check after tab-switch scrollTo(0, 0) settles and on any user/programmatic scroll or resize
     const rafId = requestAnimationFrame(() => {
       requestAnimationFrame(revealCurrentlyVisible);
     });
     const timerId = window.setTimeout(revealCurrentlyVisible, 180);
+    window.addEventListener('scroll', scheduleVisibleCheck, { passive: true });
+    window.addEventListener('resize', scheduleVisibleCheck, { passive: true });
 
     const mutationObserver = new MutationObserver((mutations) => {
       let dynamicIdx = 0;
@@ -226,7 +232,12 @@ export function useAutoScrollReveal(
 
     return () => {
       cancelAnimationFrame(rafId);
+      if (scrollCheckRaf !== null) {
+        cancelAnimationFrame(scrollCheckRaf);
+      }
       window.clearTimeout(timerId);
+      window.removeEventListener('scroll', scheduleVisibleCheck);
+      window.removeEventListener('resize', scheduleVisibleCheck);
       observer.disconnect();
       mutationObserver.disconnect();
     };

@@ -28,6 +28,15 @@
   font-variant-numeric: tabular-nums;
 }
 
+.akujin-no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.akujin-no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* 3D Flashcard & SRS Flip Utilities */
 .perspective-1000 {
   perspective: 1100px;
@@ -393,6 +402,19 @@ html {
 
 .animate-toast-enter {
   animation: akujin-toast-enter 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes akujin-modal-fade {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.animate-modal-fade {
+  animation: akujin-modal-fade 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 /* Gentle Organic Float for Hero Hanko Seal & Accent Cards */

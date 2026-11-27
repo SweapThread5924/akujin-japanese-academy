@@ -74,11 +74,11 @@ interface LessonsSectionProps {
 }
 
 const LESSONS_GRID_COLS: Record<number, string> = {
-  1: 'sm:grid-cols-1 lg:grid-cols-1 max-w-md',
-  2: 'sm:grid-cols-2 lg:grid-cols-2',
-  3: 'sm:grid-cols-2 lg:grid-cols-3',
-  4: 'sm:grid-cols-2 lg:grid-cols-4',
-  5: 'sm:grid-cols-2 lg:grid-cols-5',
+  1: 'sm:grid-cols-1 max-w-md',
+  2: 'sm:grid-cols-2',
+  3: 'sm:grid-cols-2 md:grid-cols-3',
+  4: 'sm:grid-cols-2 xl:grid-cols-4',
+  5: 'sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5',
 };
 
 interface PronunciationFeedback {
@@ -343,15 +343,15 @@ export const LessonsSection: React.FC<LessonsSectionProps> = ({
   }, [hoveredTokenId]);
 
   return (
-    <div className="mx-auto max-w-[1280px] px-4 sm:px-6 py-8 space-y-12">
+    <div className="mx-auto max-w-[1380px] px-4 sm:px-6 py-6 sm:py-8 space-y-10 sm:space-y-12">
       {/* Lesson Curriculum Selector */}
       <section className="space-y-4">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div className="min-w-0">
             <p className="text-xs font-medium text-[#D92525] dark:text-rose-400">
               教室 · Interactive Practice Studio
             </p>
-            <h1 className="text-2xl sm:text-3xl font-bold text-[#141413] dark:text-white mt-1">
+            <h1 className="text-2xl sm:text-3xl font-bold text-[#141413] dark:text-white mt-1 text-balance">
               Lessons, Flashcards &amp;{' '}
               <span className="font-display-italic text-[#D92525] dark:text-rose-400 font-semibold">
                 Real Speech Nuance.
@@ -359,13 +359,13 @@ export const LessonsSection: React.FC<LessonsSectionProps> = ({
             </h1>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 max-w-full">
             {!allVisible && onResetVisibleLevels && (
               <button
                 type="button"
                 data-testid="lessons-filter-notice"
                 onClick={onResetVisibleLevels}
-                className="px-3 py-1.5 rounded-xl border border-[#D92525]/35 bg-rose-50/70 dark:bg-rose-950/30 text-xs font-semibold text-[#D92525] dark:text-rose-300 hover:bg-rose-100/80 dark:hover:bg-rose-950/50 cursor-pointer transition-colors"
+                className="min-h-[40px] px-3.5 py-2 rounded-xl border border-[#D92525]/35 bg-rose-50/70 dark:bg-rose-950/30 text-xs font-semibold text-[#D92525] dark:text-rose-300 hover:bg-rose-100/80 dark:hover:bg-rose-950/50 cursor-pointer transition-colors"
               >
                 Filtered: {activeVisibleLevels.join(', ')} · Show All
               </button>
@@ -374,7 +374,7 @@ export const LessonsSection: React.FC<LessonsSectionProps> = ({
               role="tablist"
               aria-label="Filter lessons by JLPT level"
               data-testid="lessons-jlpt-tablist"
-              className="inline-flex items-center gap-1 p-1 rounded-xl bg-stone-100 dark:bg-[#16181F] border border-stone-200 dark:border-zinc-800"
+              className="inline-flex max-w-full overflow-x-auto akujin-no-scrollbar items-center gap-1 p-1 rounded-xl bg-stone-100 dark:bg-[#16181F] border border-stone-200 dark:border-zinc-800"
             >
               {activeVisibleLevels.map((lvl) => (
                 <button
@@ -389,7 +389,7 @@ export const LessonsSection: React.FC<LessonsSectionProps> = ({
                     const matchingLesson = visibleLessons.find((l) => l.level === lvl);
                     if (matchingLesson) setActiveLessonId(matchingLesson.id);
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
+                  className={`min-h-[40px] px-3.5 py-2 rounded-lg text-xs font-semibold whitespace-nowrap shrink-0 cursor-pointer transition-colors ${
                     effectiveSelectedLevel === lvl
                       ? 'bg-[#D92525] text-white'
                       : 'text-stone-600 dark:text-zinc-300 hover:text-[#141413] dark:hover:text-white'
@@ -406,7 +406,7 @@ export const LessonsSection: React.FC<LessonsSectionProps> = ({
         <div
           data-testid="lessons-unit-strip"
           className={`grid grid-cols-1 ${
-            LESSONS_GRID_COLS[visibleLessons.length] ?? 'sm:grid-cols-2 lg:grid-cols-5'
+            LESSONS_GRID_COLS[visibleLessons.length] ?? 'sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5'
           } gap-3`}
         >
           {visibleLessons.map((lesson) => {
@@ -422,7 +422,7 @@ export const LessonsSection: React.FC<LessonsSectionProps> = ({
                   setCardIndex(0);
                   setIsFlipped(false);
                 }}
-                className={`p-4 rounded-xl border text-left transition-colors cursor-pointer ${
+                className={`min-w-0 min-h-[76px] p-4 rounded-xl border text-left transition-colors cursor-pointer ${
                   active
                     ? 'bg-white dark:bg-[#1B1D26] border-[#D92525]'
                     : 'bg-white/70 dark:bg-[#16181F] border-stone-200 dark:border-zinc-800 hover:border-stone-300 dark:hover:border-zinc-700'
@@ -434,7 +434,7 @@ export const LessonsSection: React.FC<LessonsSectionProps> = ({
                 <p className="text-sm font-semibold text-[#141413] dark:text-white mt-1 line-clamp-1">
                   {lesson.title}
                 </p>
-                <p className="text-xs text-stone-500 dark:text-zinc-400 mt-1">
+                <p className="text-xs text-stone-500 dark:text-zinc-400 mt-1 truncate">
                   {lesson.focusSkills.join(' · ')}
                 </p>
               </button>
@@ -463,14 +463,14 @@ export const LessonsSection: React.FC<LessonsSectionProps> = ({
       />
 
       {/* Main Grid: Interactive Flashcard + Pronunciation Coach | Adaptive Quiz */}
-      <section className="grid lg:grid-cols-12 gap-6 items-start">
+      <section className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 items-start">
         {/* Left: Interactive 3D Flashcard + Pronunciation Practice */}
-        <div className="lg:col-span-6 space-y-5">
-          <div className="flex items-center justify-between">
+        <div className="lg:col-span-6 min-w-0 space-y-5">
+          <div className="flex items-center justify-between gap-2">
             <h2 className="text-lg font-bold text-[#141413] dark:text-white">
               Interactive Flashcard ({effectiveSelectedLevel})
             </h2>
-            <span className="text-xs font-mono-nums text-stone-500 dark:text-zinc-400">
+            <span className="text-xs font-mono-nums text-stone-500 dark:text-zinc-400 shrink-0">
               Card {(cardIndex % levelCards.length) + 1} of {levelCards.length}
             </span>
           </div>
@@ -484,11 +484,11 @@ export const LessonsSection: React.FC<LessonsSectionProps> = ({
               {/* Front Face */}
               <div
                 aria-hidden={isFlipped}
-                className={`[grid-area:1/1] backface-hidden rounded-2xl bg-white dark:bg-[#16181F] border border-stone-200 dark:border-zinc-800 p-6 sm:p-8 flex flex-col justify-between min-h-[260px] ${
+                className={`[grid-area:1/1] backface-hidden rounded-2xl bg-white dark:bg-[#16181F] border border-stone-200 dark:border-zinc-800 p-5 sm:p-7 flex flex-col justify-between min-h-[260px] ${
                   isFlipped ? 'pointer-events-none' : ''
                 }`}
               >
-                <div className="flex items-center justify-between text-xs text-stone-500 dark:text-zinc-400">
+                <div className="flex items-center justify-between gap-2 text-xs text-stone-500 dark:text-zinc-400">
                   <span>
                     {currentCard.level} · {currentCard.category}
                   </span>
@@ -497,7 +497,7 @@ export const LessonsSection: React.FC<LessonsSectionProps> = ({
                     tabIndex={isFlipped ? -1 : undefined}
                     onClick={() => handleSpeak(currentCard.id, currentCard.plainJapanese)}
                     aria-label="Play flashcard pronunciation"
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium cursor-pointer transition-colors ${
+                    className={`inline-flex items-center gap-1.5 min-h-[40px] px-3.5 py-2 rounded-lg border text-xs font-medium cursor-pointer transition-colors shrink-0 ${
                       speakingId === currentCard.id
                         ? 'border-[#D92525] text-[#D92525] bg-[#D92525]/5'
                         : 'border-stone-200 dark:border-zinc-700 text-stone-700 dark:text-zinc-200 hover:border-[#D92525]/50'
@@ -520,7 +520,7 @@ export const LessonsSection: React.FC<LessonsSectionProps> = ({
                   />
                 </div>
 
-                <div className="flex items-center justify-between pt-3 border-t border-stone-100 dark:border-zinc-800">
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-stone-100 dark:border-zinc-800">
                   <button
                     type="button"
                     tabIndex={isFlipped ? -1 : undefined}
@@ -528,7 +528,7 @@ export const LessonsSection: React.FC<LessonsSectionProps> = ({
                       setIsFlipped(true);
                       playCardFlipSound(soundEnabled);
                     }}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#D92525] hover:bg-[#B91C1C] text-white text-xs font-semibold cursor-pointer transition-colors"
+                    className="inline-flex items-center justify-center gap-1.5 min-h-[42px] px-4 py-2.5 rounded-lg bg-[#D92525] hover:bg-[#B91C1C] text-white text-xs font-semibold cursor-pointer transition-colors"
                   >
                     <RotateCw className="w-3.5 h-3.5" aria-hidden="true" />
                     Flip for Meaning &amp; Exam Note
@@ -543,7 +543,7 @@ export const LessonsSection: React.FC<LessonsSectionProps> = ({
                         setCardIndex((prev) => (prev + 1) % levelCards.length);
                         setPronFeedback(null);
                       }}
-                      className="px-3 py-2 rounded-lg border border-stone-200 dark:border-zinc-700 text-xs font-medium text-stone-700 dark:text-zinc-200 hover:bg-stone-50 dark:hover:bg-zinc-800 cursor-pointer"
+                      className="min-h-[42px] px-3.5 py-2.5 rounded-lg border border-stone-200 dark:border-zinc-700 text-xs font-medium text-stone-700 dark:text-zinc-200 hover:bg-stone-50 dark:hover:bg-zinc-800 cursor-pointer"
                     >
                       Next Card
                     </button>
@@ -554,7 +554,7 @@ export const LessonsSection: React.FC<LessonsSectionProps> = ({
               {/* Back Face */}
               <div
                 aria-hidden={!isFlipped}
-                className={`[grid-area:1/1] backface-hidden rotate-y-180 rounded-2xl bg-white dark:bg-[#16181F] border border-[#D92525]/40 p-6 sm:p-8 flex flex-col justify-between min-h-[260px] ${
+                className={`[grid-area:1/1] backface-hidden rotate-y-180 rounded-2xl bg-white dark:bg-[#16181F] border border-[#D92525]/40 p-5 sm:p-7 flex flex-col justify-between min-h-[260px] ${
                   !isFlipped ? 'pointer-events-none' : ''
                 }`}
               >
@@ -580,7 +580,7 @@ export const LessonsSection: React.FC<LessonsSectionProps> = ({
                   </p>
                 </div>
 
-                <div className="flex items-center justify-between pt-3 border-t border-stone-100 dark:border-zinc-800">
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-stone-100 dark:border-zinc-800">
                   <button
                     type="button"
                     tabIndex={!isFlipped ? -1 : undefined}
@@ -588,7 +588,7 @@ export const LessonsSection: React.FC<LessonsSectionProps> = ({
                       setIsFlipped(false);
                       playCardFlipSound(soundEnabled);
                     }}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-stone-300 dark:border-zinc-700 text-xs font-semibold text-[#141413] dark:text-white cursor-pointer"
+                    className="inline-flex items-center gap-1.5 min-h-[42px] px-4 py-2.5 rounded-lg border border-stone-300 dark:border-zinc-700 text-xs font-semibold text-[#141413] dark:text-white cursor-pointer"
                   >
                     <RotateCw className="w-3.5 h-3.5" aria-hidden="true" />
                     Show Front
@@ -601,7 +601,7 @@ export const LessonsSection: React.FC<LessonsSectionProps> = ({
                       setCardIndex((prev) => (prev + 1) % levelCards.length);
                       onGainXp(10);
                     }}
-                    className="px-4 py-2 rounded-lg bg-[#141413] dark:bg-white text-white dark:text-[#141413] text-xs font-semibold cursor-pointer"
+                    className="min-h-[42px] px-4 py-2.5 rounded-lg bg-[#141413] dark:bg-white text-white dark:text-[#141413] text-xs font-semibold cursor-pointer"
                   >
                     Got It (+10 XP)
                   </button>
@@ -613,10 +613,10 @@ export const LessonsSection: React.FC<LessonsSectionProps> = ({
           {/* Speech Recognition & AI Pronunciation Practice */}
           <div
             id="ai-pronunciation-studio"
-            className="rounded-2xl bg-white dark:bg-[#16181F] border border-stone-200 dark:border-zinc-800 p-5 space-y-4"
+            className="rounded-2xl bg-white dark:bg-[#16181F] border border-stone-200 dark:border-zinc-800 p-4 sm:p-5 space-y-4"
           >
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
+              <div className="min-w-0">
                 <h3 className="text-sm font-bold text-[#141413] dark:text-white">
                   AI Pronunciation Studio
                 </h3>
@@ -628,7 +628,7 @@ export const LessonsSection: React.FC<LessonsSectionProps> = ({
               <button
                 type="button"
                 onClick={startSpeechCapture}
-                className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
+                className={`inline-flex items-center gap-1.5 min-h-[42px] px-4 py-2 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
                   isListening
                     ? 'bg-[#D92525] text-white'
                     : 'bg-stone-100 dark:bg-[#232632] text-[#141413] dark:text-white hover:bg-stone-200 dark:hover:bg-zinc-700'
@@ -658,13 +658,13 @@ export const LessonsSection: React.FC<LessonsSectionProps> = ({
                 value={spokenInput}
                 onChange={(e) => setSpokenInput(e.target.value)}
                 placeholder={`Speak or type: ${currentCard.plainJapanese}`}
-                className="flex-1 px-3.5 py-2 rounded-lg border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-[#101218] text-sm font-jp text-[#141413] dark:text-white focus:outline-none focus:border-[#D92525]"
+                className="flex-1 min-h-[42px] px-3.5 py-2 rounded-lg border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-[#101218] text-sm font-jp text-[#141413] dark:text-white focus:outline-none focus:border-[#D92525]"
               />
               <button
                 type="button"
                 onClick={submitPronunciationCheck}
                 disabled={checkingPron}
-                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-[#D92525] hover:bg-[#B91C1C] disabled:opacity-60 text-white text-xs font-semibold whitespace-nowrap cursor-pointer"
+                className="inline-flex items-center justify-center gap-1.5 min-h-[42px] px-4 py-2 rounded-lg bg-[#D92525] hover:bg-[#B91C1C] disabled:opacity-60 text-white text-xs font-semibold whitespace-nowrap cursor-pointer"
               >
                 <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
                 {checkingPron ? 'Analyzing…' : 'Analyze Accent'}
@@ -699,7 +699,7 @@ export const LessonsSection: React.FC<LessonsSectionProps> = ({
         </div>
 
         {/* Right: Adaptive Quiz Module with Celebratory Hanko Animation */}
-        <div className="lg:col-span-6 rounded-2xl bg-white dark:bg-[#16181F] border border-stone-200 dark:border-zinc-800 p-6 sm:p-8 space-y-5 relative overflow-hidden">
+        <div className="lg:col-span-6 min-w-0 rounded-2xl bg-white dark:bg-[#16181F] border border-stone-200 dark:border-zinc-800 p-5 sm:p-7 space-y-5 relative overflow-hidden">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <p className="text-xs font-medium text-stone-500 dark:text-zinc-400">
@@ -714,7 +714,7 @@ export const LessonsSection: React.FC<LessonsSectionProps> = ({
               type="button"
               onClick={handleGenerateAdaptiveQuiz}
               disabled={loadingAiQuiz}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-stone-200 dark:border-zinc-700 text-xs font-semibold text-[#141413] dark:text-zinc-100 hover:border-[#D92525]/60 cursor-pointer disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 min-h-[40px] px-3.5 py-2 rounded-lg border border-stone-200 dark:border-zinc-700 text-xs font-semibold text-[#141413] dark:text-zinc-100 hover:border-[#D92525]/60 cursor-pointer disabled:opacity-60"
             >
               <Sparkles className="w-3.5 h-3.5 text-[#D92525]" aria-hidden="true" />
               {loadingAiQuiz ? 'Generating…' : 'AI Adaptive Question'}
@@ -729,26 +729,28 @@ export const LessonsSection: React.FC<LessonsSectionProps> = ({
               {activeQuestion.prompt}
             </p>
             <div className="flex items-center justify-between gap-3">
-              <JapaneseText
-                segments={activeQuestion.segments}
-                plainText={activeQuestion.plainJapanese}
-                romaji={activeQuestion.romaji}
-                showFurigana={showFurigana}
-                showRomaji={showRomaji}
-                className="text-xl sm:text-2xl font-bold text-[#141413] dark:text-white"
-              />
+              <div className="min-w-0 flex-1">
+                <JapaneseText
+                  segments={activeQuestion.segments}
+                  plainText={activeQuestion.plainJapanese}
+                  romaji={activeQuestion.romaji}
+                  showFurigana={showFurigana}
+                  showRomaji={showRomaji}
+                  className="text-xl sm:text-2xl font-bold text-[#141413] dark:text-white"
+                />
+              </div>
               <button
                 type="button"
                 onClick={() => handleSpeak(activeQuestion.id, activeQuestion.plainJapanese)}
                 aria-label="Listen to quiz sentence"
-                className="p-2 rounded-lg border border-stone-200 dark:border-zinc-700 bg-white dark:bg-[#16181F] text-stone-700 dark:text-zinc-200 hover:border-[#D92525] cursor-pointer shrink-0"
+                className="min-h-[42px] min-w-[42px] p-2.5 rounded-lg border border-stone-200 dark:border-zinc-700 bg-white dark:bg-[#16181F] text-stone-700 dark:text-zinc-200 hover:border-[#D92525] flex items-center justify-center cursor-pointer shrink-0"
               >
                 <Volume2 className="w-4 h-4" aria-hidden="true" />
               </button>
             </div>
           </div>
 
-          <div className="grid sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {activeQuestion.options.map((opt) => {
               const isSelected = selectedOption === opt.id;
               const isCorrectOption = opt.id === activeQuestion.correctOptionId;
@@ -770,7 +772,7 @@ export const LessonsSection: React.FC<LessonsSectionProps> = ({
                   type="button"
                   onClick={() => handleSelectOption(opt.id)}
                   disabled={quizFeedback !== null}
-                  className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer disabled:cursor-default ${stateClass}`}
+                  className={`min-h-[52px] p-3.5 rounded-xl border text-left transition-all cursor-pointer disabled:cursor-default ${stateClass}`}
                 >
                   <div className="font-jp text-base font-bold">{opt.label}</div>
                   {showRomaji && opt.reading && (
@@ -830,9 +832,9 @@ export const LessonsSection: React.FC<LessonsSectionProps> = ({
       </section>
 
       {/* Hover-to-Translate Speech Bubbles & Textbook vs. Anime Comparison Slider */}
-      <section className="grid lg:grid-cols-12 gap-6 items-stretch">
+      <section className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 items-stretch">
         {/* Hover-to-Translate Speech Bubbles */}
-        <div className="lg:col-span-6 rounded-2xl bg-white dark:bg-[#16181F] border border-stone-200 dark:border-zinc-800 p-6 space-y-5">
+        <div className="lg:col-span-6 min-w-0 rounded-2xl bg-white dark:bg-[#16181F] border border-stone-200 dark:border-zinc-800 p-5 sm:p-6 space-y-5">
           <div>
             <p className="text-xs font-medium text-[#D92525] dark:text-rose-400">
               漫画・会話 · Hover or Tap Highlighted Terms
@@ -851,22 +853,22 @@ export const LessonsSection: React.FC<LessonsSectionProps> = ({
                 key={bubble.id}
                 className="rounded-xl bg-stone-50 dark:bg-[#1B1E28] border border-stone-200 dark:border-zinc-800 p-4 space-y-3"
               >
-                <div className="flex items-center justify-between text-xs text-stone-500 dark:text-zinc-400">
-                  <span className="font-semibold text-[#141413] dark:text-zinc-200">
+                <div className="flex items-center justify-between gap-2 text-xs text-stone-500 dark:text-zinc-400">
+                  <span className="font-semibold text-[#141413] dark:text-zinc-200 min-w-0 truncate">
                     {bubble.speaker} · {bubble.scene}
                   </span>
                   <button
                     type="button"
                     onClick={() => handleSpeak(bubble.id, bubble.plainJapanese)}
                     aria-label={`Play ${bubble.speaker} speech bubble`}
-                    className="inline-flex items-center gap-1 text-[#D92525] dark:text-rose-400 font-medium cursor-pointer"
+                    className="inline-flex items-center gap-1 min-h-[38px] px-2.5 py-1.5 rounded-lg text-[#D92525] dark:text-rose-400 font-medium cursor-pointer shrink-0"
                   >
                     <Volume2 className="w-3.5 h-3.5" aria-hidden="true" />
                     Play
                   </button>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-1.5 font-jp text-lg font-medium text-[#141413] dark:text-white">
+                <div className="flex flex-wrap items-center gap-2 font-jp text-lg font-medium text-[#141413] dark:text-white">
                   {bubble.tokens.map((tok) => {
                     const isFocused = hoveredTokenId === tok.id;
                     return (
@@ -876,7 +878,7 @@ export const LessonsSection: React.FC<LessonsSectionProps> = ({
                         onMouseEnter={() => setHoveredTokenId(tok.id)}
                         onFocus={() => setHoveredTokenId(tok.id)}
                         onClick={() => setHoveredTokenId(tok.id)}
-                        className={`px-2 py-0.5 rounded-md border transition-colors cursor-pointer ${
+                        className={`min-h-[40px] px-3 py-1.5 rounded-lg border transition-colors cursor-pointer ${
                           isFocused
                             ? 'border-[#D92525] bg-[#D92525]/10 text-[#D92525] dark:text-rose-300'
                             : 'border-stone-200 dark:border-zinc-700 bg-white dark:bg-[#16181F] hover:border-[#D92525]/50'
@@ -900,7 +902,7 @@ export const LessonsSection: React.FC<LessonsSectionProps> = ({
 
           {/* Live Breakdown Inspector */}
           <div className="rounded-xl border border-[#D92525]/30 bg-rose-50/40 dark:bg-rose-950/20 p-4 space-y-1.5">
-            <div className="flex items-center justify-between text-xs">
+            <div className="flex items-center justify-between gap-2 text-xs">
               <span className="font-semibold text-[#D92525] dark:text-rose-400">
                 {activeHoveredToken.tag} Breakdown
               </span>
@@ -919,7 +921,7 @@ export const LessonsSection: React.FC<LessonsSectionProps> = ({
         </div>
 
         {/* Textbook vs. Anime Japanese Comparison Slider */}
-        <div className="lg:col-span-6 rounded-2xl bg-white dark:bg-[#16181F] border border-stone-200 dark:border-zinc-800 p-6 flex flex-col justify-between space-y-5">
+        <div className="lg:col-span-6 min-w-0 rounded-2xl bg-white dark:bg-[#16181F] border border-stone-200 dark:border-zinc-800 p-5 sm:p-6 flex flex-col justify-between space-y-5">
           <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
@@ -931,13 +933,13 @@ export const LessonsSection: React.FC<LessonsSectionProps> = ({
                 </h2>
               </div>
 
-              <div className="flex items-center gap-1.5">
+              <div className="flex flex-wrap items-center gap-1.5">
                 {TEXTBOOK_VS_ANIME.map((ex, idx) => (
                   <button
                     key={ex.id}
                     type="button"
                     onClick={() => setTvaIndex(idx)}
-                    className={`px-2.5 py-1 rounded-md text-xs font-semibold cursor-pointer ${
+                    className={`min-h-[38px] px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${
                       tvaIndex === idx
                         ? 'bg-[#141413] dark:bg-white text-white dark:text-[#141413]'
                         : 'bg-stone-100 dark:bg-[#232632] text-stone-600 dark:text-zinc-300'
@@ -955,7 +957,7 @@ export const LessonsSection: React.FC<LessonsSectionProps> = ({
 
             {/* Range Slider */}
             <div className="space-y-2 pt-1">
-              <div className="flex items-center justify-between text-xs font-medium text-stone-600 dark:text-zinc-400">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-medium text-stone-600 dark:text-zinc-400">
                 <span>0% Textbook Polite</span>
                 <span className="inline-flex items-center gap-1 font-semibold text-[#D92525] dark:text-rose-400">
                   <SlidersHorizontal className="w-3.5 h-3.5" aria-hidden="true" />
@@ -973,13 +975,13 @@ export const LessonsSection: React.FC<LessonsSectionProps> = ({
                 max={100}
                 value={sliderValue}
                 onChange={(e) => setSliderValue(Number(e.target.value))}
-                className="w-full accent-[#D92525] cursor-pointer"
+                className="w-full h-6 accent-[#D92525] cursor-pointer"
               />
             </div>
 
             {/* Active Register Display */}
-            <div className="rounded-xl bg-stone-50 dark:bg-[#1B1E28] border border-stone-200 dark:border-zinc-800 p-5 space-y-3">
-              <div className="flex items-center justify-between text-xs">
+            <div className="rounded-xl bg-stone-50 dark:bg-[#1B1E28] border border-stone-200 dark:border-zinc-800 p-4 sm:p-5 space-y-3">
+              <div className="flex items-center justify-between gap-2 text-xs">
                 <span className="font-jp font-semibold text-[#D92525] dark:text-rose-400">
                   {activeRegister.japaneseTag}
                 </span>
@@ -987,7 +989,7 @@ export const LessonsSection: React.FC<LessonsSectionProps> = ({
                   type="button"
                   onClick={() => handleSpeak('tva-speech', activeRegister.japanese)}
                   aria-label="Play register phrase audio"
-                  className="inline-flex items-center gap-1 text-xs font-medium text-[#141413] dark:text-zinc-200 hover:text-[#D92525] cursor-pointer"
+                  className="inline-flex items-center gap-1 min-h-[38px] px-2.5 py-1.5 rounded-lg text-xs font-medium text-[#141413] dark:text-zinc-200 hover:text-[#D92525] cursor-pointer shrink-0"
                 >
                   <Volume2 className="w-3.5 h-3.5" aria-hidden="true" />
                   Hear Expression
@@ -1012,7 +1014,7 @@ export const LessonsSection: React.FC<LessonsSectionProps> = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-2 pt-2 text-center text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 text-center text-xs">
             {[
               { label: 'Textbook', val: 10 },
               { label: 'Tokyo Casual', val: 50 },
@@ -1022,7 +1024,7 @@ export const LessonsSection: React.FC<LessonsSectionProps> = ({
                 key={preset.label}
                 type="button"
                 onClick={() => setSliderValue(preset.val)}
-                className={`py-2 rounded-lg border font-medium cursor-pointer transition-colors ${
+                className={`min-h-[42px] py-2.5 px-3 rounded-lg border font-medium cursor-pointer transition-colors ${
                   interpolateRegisterTier(sliderValue) === interpolateRegisterTier(preset.val)
                     ? 'border-[#D92525] text-[#D92525] dark:text-rose-400 bg-[#D92525]/5'
                     : 'border-stone-200 dark:border-zinc-800 text-stone-600 dark:text-zinc-400'
@@ -1036,11 +1038,11 @@ export const LessonsSection: React.FC<LessonsSectionProps> = ({
       </section>
 
       {/* Community Discussion Board Under Each Lesson */}
-      <section className="rounded-2xl bg-white dark:bg-[#16181F] border border-stone-200 dark:border-zinc-800 p-6 sm:p-8 space-y-6">
+      <section className="rounded-2xl bg-white dark:bg-[#16181F] border border-stone-200 dark:border-zinc-800 p-5 sm:p-8 space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-2.5">
-            <MessageSquare className="w-5 h-5 text-[#D92525]" aria-hidden="true" />
-            <div>
+          <div className="flex items-center gap-2.5 min-w-0">
+            <MessageSquare className="w-5 h-5 text-[#D92525] shrink-0" aria-hidden="true" />
+            <div className="min-w-0">
               <h2 className="text-lg font-bold text-[#141413] dark:text-white">
                 Community Nuance &amp; Quote Board — {activeLesson.title}
               </h2>
@@ -1054,8 +1056,8 @@ export const LessonsSection: React.FC<LessonsSectionProps> = ({
           </span>
         </div>
 
-        <form onSubmit={handleDiscussionSubmit} className="grid sm:grid-cols-12 gap-3">
-          <div className="sm:col-span-4">
+        <form onSubmit={handleDiscussionSubmit} className="grid grid-cols-1 md:grid-cols-12 gap-3">
+          <div className="md:col-span-4">
             <label htmlFor="quote-input" className="sr-only">
               Japanese quote or phrase (optional)
             </label>
@@ -1065,10 +1067,10 @@ export const LessonsSection: React.FC<LessonsSectionProps> = ({
               value={quoteInput}
               onChange={(e) => setQuoteInput(e.target.value)}
               placeholder="Quote / phrase (optional, e.g. やばい！)"
-              className="w-full px-3.5 py-2.5 rounded-lg border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-[#101218] text-sm font-jp text-[#141413] dark:text-white focus:outline-none focus:border-[#D92525]"
+              className="w-full min-h-[42px] px-3.5 py-2.5 rounded-lg border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-[#101218] text-sm font-jp text-[#141413] dark:text-white focus:outline-none focus:border-[#D92525]"
             />
           </div>
-          <div className="sm:col-span-6">
+          <div className="md:col-span-6">
             <label htmlFor="comment-input" className="sr-only">
               Nuance comment
             </label>
@@ -1079,14 +1081,14 @@ export const LessonsSection: React.FC<LessonsSectionProps> = ({
               value={commentInput}
               onChange={(e) => setCommentInput(e.target.value)}
               placeholder="Share a nuance insight, JLPT memory hook, or favorite line…"
-              className="w-full px-3.5 py-2.5 rounded-lg border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-[#101218] text-sm text-[#141413] dark:text-white focus:outline-none focus:border-[#D92525]"
+              className="w-full min-h-[42px] px-3.5 py-2.5 rounded-lg border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-[#101218] text-sm text-[#141413] dark:text-white focus:outline-none focus:border-[#D92525]"
             />
           </div>
-          <div className="sm:col-span-2">
+          <div className="md:col-span-2">
             <button
               type="submit"
               disabled={postingDiscussion}
-              className="w-full h-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg bg-[#D92525] hover:bg-[#B91C1C] text-white text-xs font-semibold cursor-pointer disabled:opacity-60"
+              className="w-full min-h-[42px] h-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg bg-[#D92525] hover:bg-[#B91C1C] text-white text-xs font-semibold whitespace-nowrap cursor-pointer disabled:opacity-60"
             >
               <Send className="w-3.5 h-3.5" aria-hidden="true" />
               Post Note
@@ -1108,7 +1110,7 @@ export const LessonsSection: React.FC<LessonsSectionProps> = ({
           ) : (
             lessonDiscussions.map((post) => (
               <article key={post.id} className="py-4 flex items-start justify-between gap-4">
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 min-w-0">
                   <div className="flex flex-wrap items-center gap-2 text-xs text-stone-500 dark:text-zinc-400">
                     <span className="font-semibold text-[#141413] dark:text-white">
                       {post.author}
@@ -1132,7 +1134,7 @@ export const LessonsSection: React.FC<LessonsSectionProps> = ({
                   type="button"
                   onClick={() => onUpvoteDiscussion(post.id)}
                   aria-label={`Upvote note by ${post.author}`}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-stone-200 dark:border-zinc-700 text-xs font-mono-nums text-stone-600 dark:text-zinc-300 hover:border-[#D92525] cursor-pointer shrink-0"
+                  className="inline-flex items-center gap-1.5 min-h-[40px] px-3 py-1.5 rounded-lg border border-stone-200 dark:border-zinc-700 text-xs font-mono-nums text-stone-600 dark:text-zinc-300 hover:border-[#D92525] cursor-pointer shrink-0"
                 >
                   <ThumbsUp className="w-3.5 h-3.5 text-[#D92525]" aria-hidden="true" />
                   {post.upvotes}

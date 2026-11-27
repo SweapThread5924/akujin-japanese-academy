@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   RotateCw,
   Play,
@@ -18,7 +18,11 @@ import {
 import { KANJI_DECK, type KanjiCard } from '../data/curriculumData';
 import { getKanjiExampleSentences } from '../data/kanjiExamples';
 import { ALL_JLPT_KANJI_CATALOG } from '../data/jlptUpperData';
-import { loadJoyoKanji2136, type JoyoKanjiEntry } from '../utils/datasetLoader';
+import {
+  getCachedJoyoKanji2136,
+  loadJoyoKanji2136,
+  type JoyoKanjiEntry,
+} from '../utils/datasetLoader';
 import {
   buildFocusModeDeck,
   buildKanjiPronunciationScript,
@@ -51,6 +55,13 @@ import { KanjiDrawingBoard, type KanjiPracticeMode } from './KanjiDrawingBoard';
 import { RadicalTree } from './RadicalTree';
 import { AudioSpeedControl } from './AudioSpeedControl';
 
+export interface FocusedKanjiRequest {
+  kanji: string;
+  level?: JlptLevel;
+  targetView: 'srs' | 'stroke-practice';
+  nonce: number;
+}
+
 interface KanjiSrsSectionProps {
   targetLevel: JlptLevel;
   visibleLevels?: JlptLevel[];
@@ -64,6 +75,7 @@ interface KanjiSrsSectionProps {
   soundEnabled: boolean;
   darkMode: boolean;
   initialPracticeMode?: KanjiPracticeMode;
+  focusedKanjiRequest?: FocusedKanjiRequest | null;
   masteredItemIds: string[];
   onMasterItem: (itemId: string, xp: number) => void;
   audioSpeed: number;
@@ -83,6 +95,7 @@ export const KanjiSrsSection: React.FC<KanjiSrsSectionProps> = ({
   soundEnabled,
   darkMode,
   initialPracticeMode,
+  focusedKanjiRequest = null,
   masteredItemIds,
   onMasterItem,
   audioSpeed,
@@ -101,7 +114,9 @@ export const KanjiSrsSection: React.FC<KanjiSrsSectionProps> = ({
   const [activeStrokeStep, setActiveStrokeStep] = useState<number | null>(null);
   const [catalogSearch, setCatalogSearch] = useState('');
   const [catalogPage, setCatalogPage] = useState(0);
-  const [fullJoyoCatalog, setFullJoyoCatalog] = useState<JoyoKanjiEntry[]>(ALL_JLPT_KANJI_CATALOG);
+  const [fullJoyoCatalog, setFullJoyoCatalog] = useState<JoyoKanjiEntry[]>(
+    () => getCachedJoyoKanji2136() ?? ALL_JLPT_KANJI_CATALOG
+  );
   const [gradeFilter, setGradeFilter] = useState<'ALL' | number>('ALL');
   const [perfectStreak, setPerfectStreak] = useState(0);
   const [celebrationKey, setCelebrationKey] = useState(0);
@@ -113,6 +128,11 @@ export const KanjiSrsSection: React.FC<KanjiSrsSectionProps> = ({
   const [focusMode, setFocusMode] = useState(false);
   const [focusQueue, setFocusQueue] = useState<FocusModeCardItem<KanjiCard>[]>([]);
   const [focusReviewedIds, setFocusReviewedIds] = useState<string[]>([]);
+  const [requestedDrawingMode, setRequestedDrawingMode] = useState<{
+    mode: KanjiPracticeMode;
+    nonce: number;
+  } | null>(null);
+  const lastHandledJumpKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!showCelebration) return;
@@ -197,6 +217,60 @@ export const KanjiSrsSection: React.FC<KanjiSrsSectionProps> = ({
     return visibleSrsDeck.filter((k) => k.level === levelFilter);
   }, [visibleSrsDeck, levelFilter]);
 
+  // Apply deep-link requests from KanjiDictionarySection once the matching Kanji is present in visibleSrsDeck
+  useEffect(() => {
+    if (!focusedKanjiRequest) return;
+    const jumpKey = `${focusedKanjiRequest.nonce}:${fullJoyoCatalog.length}`;
+    if (lastHandledJumpKeyRef.current === jumpKey) return;
+
+    const targetIdxInVisible = visibleSrsDeck.findIndex(
+      (k) => k.kanji === focusedKanjiRequest.kanji || k.id === focusedKanjiRequest.kanji
+    );
+    if (targetIdxInVisible < 0) {
+      // Wait for fullJoyoCatalog async load or visibleLevels update to include the target Kanji
+      return;
+    }
+
+    lastHandledJumpKeyRef.current = jumpKey;
+    const targetCard = visibleSrsDeck[targetIdxInVisible];
+
+    setFocusMode(false);
+    const needsFilterReset = levelFilter !== 'ALL' && levelFilter !== targetCard.level;
+    const targetDeck = needsFilterReset || levelFilter === 'ALL'
+      ? visibleSrsDeck
+      : visibleSrsDeck.filter((k) => k.level === levelFilter);
+
+    const nextIdx = targetDeck.findIndex((k) => k.id === targetCard.id);
+    if (needsFilterReset) {
+      setLevelFilter('ALL');
+    }
+    setCardIdx(nextIdx >= 0 ? nextIdx : 0);
+    setFlipped(false);
+    setActiveStrokeStep(null);
+    setSrsSearchQuery('');
+
+    if (focusedKanjiRequest.targetView === 'stroke-practice') {
+      setRequestedDrawingMode({ mode: 'stroke-order', nonce: focusedKanjiRequest.nonce });
+      setStudySessionNotice(
+        `Stroke Practice ready: ${targetCard.kanji} (${targetCard.meaning} · ${targetCard.strokes} strokes)`
+      );
+      window.setTimeout(() => {
+        document
+          .getElementById('kanji-drawing-board')
+          ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 120);
+    } else {
+      setStudySessionNotice(
+        `SRS Card ready: ${targetCard.kanji} (${targetCard.meaning} · JLPT ${targetCard.level})`
+      );
+      window.setTimeout(() => {
+        document
+          .getElementById('srs-flashcard-deck')
+          ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 120);
+    }
+  }, [focusedKanjiRequest, visibleSrsDeck, levelFilter, fullJoyoCatalog.length]);
+
   const activeDeck = useMemo(() => {
     if (focusMode && focusQueue.length > 0) {
       return focusQueue.map((item) => item.card);
@@ -230,9 +304,9 @@ export const KanjiSrsSection: React.FC<KanjiSrsSectionProps> = ({
         joyoCatalog: fullJoyoCatalog,
         masteredItemIds,
         srsProgress,
-        srsDeck: KANJI_DECK,
+        srsDeck: fullSrsDeck,
       }),
-    [effectiveTargetLevel, fullJoyoCatalog, masteredItemIds, srsProgress]
+    [effectiveTargetLevel, fullJoyoCatalog, masteredItemIds, srsProgress, fullSrsDeck]
   );
 
   const perLevelBreakdown = useMemo(
@@ -241,10 +315,47 @@ export const KanjiSrsSection: React.FC<KanjiSrsSectionProps> = ({
         joyoCatalog: fullJoyoCatalog,
         masteredItemIds,
         srsProgress,
-        srsDeck: KANJI_DECK,
+        srsDeck: fullSrsDeck,
       }).filter((row) => activeVisibleLevels.includes(row.level)),
-    [fullJoyoCatalog, masteredItemIds, srsProgress, activeVisibleLevels]
+    [fullJoyoCatalog, masteredItemIds, srsProgress, fullSrsDeck, activeVisibleLevels]
   );
+
+  const levelScopedCatalog = useMemo(
+    () =>
+      levelFilter === 'ALL'
+        ? visibleJoyoCatalog
+        : visibleJoyoCatalog.filter((item) => item.level === levelFilter),
+    [visibleJoyoCatalog, levelFilter]
+  );
+
+  const gradeCounts = useMemo(() => {
+    const counts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 8: 0 };
+    for (const item of levelScopedCatalog) {
+      if (typeof item.grade === 'number') {
+        counts[item.grade] = (counts[item.grade] ?? 0) + 1;
+      }
+    }
+    return {
+      all: levelScopedCatalog.length,
+      byGrade: counts,
+    };
+  }, [levelScopedCatalog]);
+
+  const handleShowAllJoyoKanji = () => {
+    if (!allVisible) {
+      onResetVisibleLevels?.();
+    }
+    setFocusMode(false);
+    setLevelFilter('ALL');
+    setGradeFilter('ALL');
+    setCardIdx(0);
+    setCatalogPage(0);
+    setActiveStrokeStep(null);
+    setFlipped(false);
+  };
+
+  const isKanjiDeckNarrowed =
+    !allVisible || levelFilter !== 'ALL' || gradeFilter !== 'ALL' || focusMode;
 
   const totalBreakdownSummary = useMemo(() => {
     let mastered = 0;
@@ -358,10 +469,10 @@ export const KanjiSrsSection: React.FC<KanjiSrsSectionProps> = ({
   };
 
   return (
-    <div className="mx-auto max-w-[1280px] px-4 sm:px-6 py-8 space-y-10">
+    <div className="mx-auto max-w-[1380px] px-4 sm:px-6 py-6 sm:py-8 space-y-8 sm:space-y-10">
       {/* Header + JLPT Deck Filter */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
+        <div className="min-w-0">
           <p className="text-xs font-medium text-[#D92525] dark:text-rose-400">
             漢字道場 · Spaced Repetition &amp; Radical Breakdown
           </p>
@@ -373,13 +484,13 @@ export const KanjiSrsSection: React.FC<KanjiSrsSectionProps> = ({
           </h1>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 self-start">
+        <div className="flex flex-wrap items-center gap-2 self-start w-full md:w-auto">
           {!allVisible && onResetVisibleLevels && (
             <button
               type="button"
               data-testid="kanji-filter-notice"
               onClick={onResetVisibleLevels}
-              className="px-3 py-2 rounded-xl border border-[#D92525]/35 bg-rose-50/70 dark:bg-rose-950/30 text-xs font-semibold text-[#D92525] dark:text-rose-300 hover:bg-rose-100/80 dark:hover:bg-rose-950/50 cursor-pointer transition-colors"
+              className="min-h-[40px] px-3 py-2 rounded-xl border border-[#D92525]/35 bg-rose-50/70 dark:bg-rose-950/30 text-xs font-semibold text-[#D92525] dark:text-rose-300 hover:bg-rose-100/80 dark:hover:bg-rose-950/50 cursor-pointer transition-colors"
             >
               Filtered: {activeVisibleLevels.join(', ')} · Show All
             </button>
@@ -389,7 +500,7 @@ export const KanjiSrsSection: React.FC<KanjiSrsSectionProps> = ({
             data-testid="focus-mode-toggle"
             aria-pressed={focusMode}
             onClick={handleToggleFocusMode}
-            className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border text-xs font-semibold whitespace-nowrap cursor-pointer transition-colors ${
+            className={`inline-flex items-center gap-1.5 min-h-[40px] px-3.5 py-2 rounded-xl border text-xs font-semibold whitespace-nowrap cursor-pointer transition-colors ${
               focusMode
                 ? 'bg-[#D92525] border-[#D92525] text-white shadow-xs'
                 : 'bg-white dark:bg-[#16181F] border-stone-200 dark:border-zinc-800 text-[#141413] dark:text-zinc-200 hover:border-[#D92525]'
@@ -403,7 +514,7 @@ export const KanjiSrsSection: React.FC<KanjiSrsSectionProps> = ({
             role="tablist"
             aria-label="Filter Kanji deck by JLPT level"
             data-testid="kanji-jlpt-tablist"
-            className="inline-flex max-w-full overflow-x-auto items-center gap-1 p-1 rounded-xl bg-stone-100 dark:bg-[#16181F] border border-stone-200 dark:border-zinc-800"
+            className="akujin-no-scrollbar inline-flex max-w-full overflow-x-auto items-center gap-1 p-1 rounded-xl bg-stone-100 dark:bg-[#16181F] border border-stone-200 dark:border-zinc-800"
           >
             {(['ALL', ...activeVisibleLevels] as const).map((lvl) => (
               <button
@@ -419,7 +530,7 @@ export const KanjiSrsSection: React.FC<KanjiSrsSectionProps> = ({
                   setActiveStrokeStep(null);
                   setFlipped(false);
                 }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap cursor-pointer transition-colors ${
+                className={`min-h-[40px] px-3.5 py-2 rounded-lg text-xs font-semibold whitespace-nowrap cursor-pointer transition-colors ${
                   !focusMode && levelFilter === lvl
                     ? 'bg-[#D92525] text-white'
                     : 'text-stone-600 dark:text-zinc-300 hover:text-[#141413] dark:hover:text-white'
@@ -489,7 +600,7 @@ export const KanjiSrsSection: React.FC<KanjiSrsSectionProps> = ({
                     setActiveStrokeStep(null);
                     setFlipped(false);
                   }}
-                  className="px-3 py-1.5 rounded-lg border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-[#101218] hover:border-[#D92525] text-xs font-semibold text-[#141413] dark:text-zinc-200 whitespace-nowrap cursor-pointer transition-colors"
+                  className="min-h-[40px] px-3.5 py-2 rounded-lg border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-[#101218] hover:border-[#D92525] text-xs font-semibold text-[#141413] dark:text-zinc-200 whitespace-nowrap cursor-pointer transition-colors"
                 >
                   Focus {effectiveTargetLevel}
                 </button>
@@ -555,14 +666,14 @@ export const KanjiSrsSection: React.FC<KanjiSrsSectionProps> = ({
                 }
               }}
               placeholder="Find Kanji to study by reading, meaning, or character (e.g. 休, rest, やすむ, eki, bright)..."
-              className="w-full pl-10 pr-9 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-[#101218] text-xs sm:text-sm text-[#141413] dark:text-white placeholder:text-stone-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-[#D92525]"
+              className="w-full min-h-[44px] pl-10 pr-10 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-[#101218] text-xs sm:text-sm text-[#141413] dark:text-white placeholder:text-stone-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-[#D92525]"
             />
             {srsSearchQuery.trim().length > 0 && (
               <button
                 type="button"
                 aria-label="Clear Kanji study search"
                 onClick={() => setSrsSearchQuery('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-md text-stone-400 hover:text-[#141413] dark:hover:text-white cursor-pointer"
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg text-stone-400 hover:text-[#141413] dark:hover:text-white cursor-pointer"
               >
                 <X className="w-3.5 h-3.5" aria-hidden="true" />
               </button>
@@ -574,7 +685,7 @@ export const KanjiSrsSection: React.FC<KanjiSrsSectionProps> = ({
               data-testid="srs-study-session-notice"
               role="status"
               aria-live="polite"
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-500/30 text-xs font-semibold text-emerald-800 dark:text-emerald-300 shrink-0"
+              className="inline-flex items-center gap-1.5 min-h-[40px] px-3 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-500/30 text-xs font-semibold text-emerald-800 dark:text-emerald-300 shrink-0"
             >
               <CheckCircle2 className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
               <span>{studySessionNotice}</span>
@@ -602,13 +713,13 @@ export const KanjiSrsSection: React.FC<KanjiSrsSectionProps> = ({
                       .querySelector('[data-testid="joyo-kanji-directory"]')
                       ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                   }}
-                  className="px-3 py-1 rounded-lg border border-stone-200 dark:border-zinc-700 text-xs font-semibold text-[#D92525] dark:text-rose-400 hover:border-[#D92525] cursor-pointer"
+                  className="min-h-[40px] px-3 py-2 rounded-lg border border-stone-200 dark:border-zinc-700 text-xs font-semibold text-[#D92525] dark:text-rose-400 hover:border-[#D92525] cursor-pointer"
                 >
                   Search 2,136 Jōyō Directory →
                 </button>
               </div>
             ) : (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-2 pt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2.5 pt-2">
                 {srsSearchMatches.map((card) => {
                   const readingsPreview = formatKanjiCardReadingsWithRomaji([
                     ...card.onyomi.slice(0, 1),
@@ -621,7 +732,7 @@ export const KanjiSrsSection: React.FC<KanjiSrsSectionProps> = ({
                       type="button"
                       data-testid={`srs-search-result-${card.id}`}
                       onClick={() => handleStartStudyForKanji(card.id)}
-                      className="akujin-card-lift akujin-btn-press group flex items-center justify-between gap-2.5 p-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50/80 dark:bg-[#1B1E28] hover:border-[#D92525] dark:hover:border-rose-500 text-left cursor-pointer"
+                      className="akujin-card-lift akujin-btn-press group min-w-0 min-h-[56px] flex items-center justify-between gap-2.5 p-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50/80 dark:bg-[#1B1E28] hover:border-[#D92525] dark:hover:border-rose-500 text-left cursor-pointer"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <span className="h-10 w-10 rounded-lg bg-white dark:bg-[#101218] border border-stone-200 dark:border-zinc-700 font-jp text-2xl font-bold text-[#141413] dark:text-white flex items-center justify-center shrink-0">
@@ -694,7 +805,7 @@ export const KanjiSrsSection: React.FC<KanjiSrsSectionProps> = ({
                 type="button"
                 data-testid="focus-mode-refresh"
                 onClick={handleRefreshFocusQueue}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-stone-200 dark:border-zinc-700 bg-white dark:bg-[#101218] text-xs font-semibold text-[#141413] dark:text-zinc-200 hover:border-[#D92525] cursor-pointer"
+                className="inline-flex items-center gap-1 min-h-[40px] px-3 py-2 rounded-lg border border-stone-200 dark:border-zinc-700 bg-white dark:bg-[#101218] text-xs font-semibold text-[#141413] dark:text-zinc-200 hover:border-[#D92525] cursor-pointer"
               >
                 <RefreshCw className="w-3 h-3" aria-hidden="true" />
                 Re-rank Queue
@@ -702,7 +813,7 @@ export const KanjiSrsSection: React.FC<KanjiSrsSectionProps> = ({
               <button
                 type="button"
                 onClick={handleToggleFocusMode}
-                className="px-2.5 py-1.5 rounded-lg border border-stone-200 dark:border-zinc-700 bg-white dark:bg-[#101218] text-xs font-semibold text-stone-600 dark:text-zinc-300 hover:text-[#D92525] cursor-pointer"
+                className="min-h-[40px] px-3 py-2 rounded-lg border border-stone-200 dark:border-zinc-700 bg-white dark:bg-[#101218] text-xs font-semibold text-stone-600 dark:text-zinc-300 hover:text-[#D92525] cursor-pointer"
               >
                 Exit
               </button>
@@ -711,7 +822,7 @@ export const KanjiSrsSection: React.FC<KanjiSrsSectionProps> = ({
 
           <div
             data-testid="focus-mode-queue"
-            className="flex flex-wrap items-center gap-1.5"
+            className="flex flex-wrap items-center gap-2"
           >
             {focusQueue.map((item, idx) => {
               const isCurrent = idx === cardIdx % focusQueue.length;
@@ -728,7 +839,7 @@ export const KanjiSrsSection: React.FC<KanjiSrsSectionProps> = ({
                     setFlipped(false);
                     setActiveStrokeStep(null);
                   }}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-semibold cursor-pointer transition-colors ${
+                  className={`inline-flex items-center gap-1.5 min-h-[40px] px-3 py-1.5 rounded-lg border text-xs font-semibold cursor-pointer transition-colors ${
                     isCurrent
                       ? 'bg-[#D92525] border-[#D92525] text-white'
                       : isDone
@@ -755,14 +866,26 @@ export const KanjiSrsSection: React.FC<KanjiSrsSectionProps> = ({
       )}
 
       {/* Main Split: SRS Flip Card & Radical Breakdown Visual Tree */}
-      <div className="grid lg:grid-cols-12 gap-6 items-start">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
         {/* Left: SRS Flip Deck */}
-        <div className="lg:col-span-7 min-w-0 space-y-4">
+        <div id="srs-flashcard-deck" className="scroll-mt-24 xl:col-span-7 min-w-0 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-stone-500 dark:text-zinc-400">
-            <span data-testid="flashcard-deck-counter" className="font-mono-nums">
-              {focusMode ? 'Focus ' : ''}Card {activeDeck.length > 0 ? (activeCardIndex + 1).toLocaleString() : 0} of {activeDeck.length.toLocaleString()} ·{' '}
-              {currentKanji.level} · {currentKanji.strokes} Strokes
-            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span data-testid="flashcard-deck-counter" className="font-mono-nums">
+                {focusMode ? 'Focus ' : ''}Card {activeDeck.length > 0 ? (activeCardIndex + 1).toLocaleString() : 0} of {activeDeck.length.toLocaleString()} ·{' '}
+                {currentKanji.level} · {currentKanji.strokes} Strokes
+              </span>
+              {activeDeck.length < fullSrsDeck.length && (
+                <button
+                  type="button"
+                  data-testid="srs-show-all-2136"
+                  onClick={handleShowAllJoyoKanji}
+                  className="min-h-[36px] px-2.5 py-1 rounded-md border border-[#D92525]/35 bg-rose-50/70 dark:bg-rose-950/30 text-[11px] font-semibold text-[#D92525] dark:text-rose-300 hover:bg-rose-100/80 cursor-pointer"
+                >
+                  Show All {fullSrsDeck.length.toLocaleString()}
+                </button>
+              )}
+            </div>
 
             <div className="flex items-center gap-3">
               {/* Mastery Streak Badge (5 consecutive rating-5 reviews) */}
@@ -865,7 +988,7 @@ export const KanjiSrsSection: React.FC<KanjiSrsSectionProps> = ({
               {/* Front: Kanji Recall */}
               <div
                 aria-hidden={flipped}
-                className={`akujin-card-lift [grid-area:1/1] backface-hidden rounded-2xl bg-white dark:bg-[#16181F] border border-stone-200 dark:border-zinc-800 p-8 flex flex-col items-center justify-between min-h-[420px] text-center ${
+                className={`akujin-card-lift [grid-area:1/1] backface-hidden rounded-2xl bg-white dark:bg-[#16181F] border border-stone-200 dark:border-zinc-800 p-5 sm:p-8 flex flex-col items-center justify-between min-h-[400px] sm:min-h-[420px] text-center ${
                   flipped ? 'pointer-events-none' : ''
                 }`}
               >
@@ -874,8 +997,8 @@ export const KanjiSrsSection: React.FC<KanjiSrsSectionProps> = ({
                   <span className="font-mono-nums">{currentKanji.strokes} Strokes</span>
                 </div>
 
-                <div className="my-auto space-y-4">
-                  <div className="font-jp text-[7rem] leading-none font-bold text-[#141413] dark:text-white select-none">
+                <div className="my-auto py-4 space-y-4">
+                  <div className="font-jp text-7xl sm:text-[7rem] leading-none font-bold text-[#141413] dark:text-white select-none">
                     {currentKanji.kanji}
                   </div>
                   <p className="text-sm text-stone-500 dark:text-zinc-400">
@@ -883,13 +1006,13 @@ export const KanjiSrsSection: React.FC<KanjiSrsSectionProps> = ({
                   </p>
                 </div>
 
-                <div className="flex flex-wrap items-center justify-center gap-2.5">
+                <div className="flex flex-wrap items-center justify-center gap-2.5 w-full">
                   <button
                     type="button"
                     data-testid="play-pronunciation-front"
                     onClick={handlePlayKanjiPronunciation}
                     aria-label={`Play pronunciation for ${currentKanji.kanji} On'yomi and Kun'yomi readings`}
-                    className={`inline-flex items-center gap-2 px-4 py-3 rounded-xl border text-sm font-semibold cursor-pointer transition-colors ${
+                    className={`inline-flex items-center justify-center gap-2 min-h-[44px] px-4 py-3 rounded-xl border text-sm font-semibold cursor-pointer transition-colors ${
                       isSpeakingReadings
                         ? 'border-[#D92525] bg-rose-50 dark:bg-rose-950/40 text-[#D92525] dark:text-rose-300'
                         : 'border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-[#1B1E28] hover:border-[#D92525] text-[#141413] dark:text-zinc-100'
@@ -905,7 +1028,7 @@ export const KanjiSrsSection: React.FC<KanjiSrsSectionProps> = ({
                       handlePlayStrokes();
                       playCardFlipSound(soundEnabled);
                     }}
-                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#D92525] hover:bg-[#B91C1C] text-white text-sm font-semibold cursor-pointer transition-colors"
+                    className="inline-flex items-center justify-center gap-2 min-h-[44px] px-6 py-3 rounded-xl bg-[#D92525] hover:bg-[#B91C1C] text-white text-sm font-semibold cursor-pointer transition-colors"
                   >
                     <RotateCw className="w-4 h-4" aria-hidden="true" />
                     Reveal Stroke Order &amp; Readings
@@ -916,14 +1039,14 @@ export const KanjiSrsSection: React.FC<KanjiSrsSectionProps> = ({
               {/* Back: Stroke Order + Readings + Example */}
               <div
                 aria-hidden={!flipped}
-                className={`[grid-area:1/1] backface-hidden rotate-y-180 rounded-2xl bg-white dark:bg-[#16181F] border border-[#D92525]/40 p-6 sm:p-8 flex flex-col justify-between min-h-[420px] ${
+                className={`[grid-area:1/1] backface-hidden rotate-y-180 rounded-2xl bg-white dark:bg-[#16181F] border border-[#D92525]/40 p-4 sm:p-6 md:p-8 flex flex-col justify-between min-h-[400px] sm:min-h-[420px] ${
                   !flipped ? 'pointer-events-none' : ''
                 }`}
               >
-                <div className="grid sm:grid-cols-12 gap-6 items-center">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-5 md:gap-6 items-center">
                   {/* Animated SVG Stroke Order Diagram */}
-                  <div className="sm:col-span-5 flex flex-col items-center space-y-2.5">
-                    <div className="relative h-44 w-44 rounded-xl border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-[#101218] p-2">
+                  <div className="md:col-span-5 flex flex-col items-center space-y-2.5">
+                    <div className="relative h-40 w-40 sm:h-44 sm:w-44 rounded-xl border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-[#101218] p-2">
                       {/* Guide crosshair */}
                       <svg
                         viewBox="0 0 100 100"
@@ -986,11 +1109,11 @@ export const KanjiSrsSection: React.FC<KanjiSrsSectionProps> = ({
                       </svg>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center justify-center gap-2">
                       <button
                         type="button"
                         onClick={handlePlayStrokes}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-stone-200 dark:border-zinc-700 text-xs font-medium text-[#141413] dark:text-zinc-200 hover:border-[#D92525] cursor-pointer"
+                        className="inline-flex items-center gap-1 min-h-[40px] px-3 py-1.5 rounded-lg border border-stone-200 dark:border-zinc-700 text-xs font-medium text-[#141413] dark:text-zinc-200 hover:border-[#D92525] cursor-pointer"
                       >
                         <Play className="w-3 h-3 text-[#D92525]" aria-hidden="true" />
                         Replay Strokes
@@ -1004,7 +1127,7 @@ export const KanjiSrsSection: React.FC<KanjiSrsSectionProps> = ({
                               : (prev + 1) % currentKanji.strokePaths.length
                           )
                         }
-                        className="px-2.5 py-1 rounded-md border border-stone-200 dark:border-zinc-700 text-xs font-mono-nums text-stone-600 dark:text-zinc-300 cursor-pointer"
+                        className="min-h-[40px] px-3 py-1.5 rounded-lg border border-stone-200 dark:border-zinc-700 text-xs font-mono-nums text-stone-600 dark:text-zinc-300 cursor-pointer"
                       >
                         Step {activeStrokeStep === null ? 'All' : activeStrokeStep + 1}
                       </button>
@@ -1012,18 +1135,18 @@ export const KanjiSrsSection: React.FC<KanjiSrsSectionProps> = ({
                   </div>
 
                   {/* Readings & Example */}
-                  <div className="sm:col-span-7 space-y-3">
+                  <div className="md:col-span-7 min-w-0 space-y-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <h2 className="text-2xl font-bold text-[#141413] dark:text-white">
+                      <h2 className="text-xl sm:text-2xl font-bold text-[#141413] dark:text-white break-words">
                         {currentKanji.meaning}
                       </h2>
-                      <div className="flex items-center gap-2.5">
+                      <div className="flex flex-wrap items-center gap-2">
                         <button
                           type="button"
                           data-testid="play-pronunciation-back"
                           onClick={handlePlayKanjiPronunciation}
                           aria-label={`Play pronunciation for ${currentKanji.kanji} On'yomi and Kun'yomi readings`}
-                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold cursor-pointer transition-colors ${
+                          className={`inline-flex items-center gap-1.5 min-h-[40px] px-3 py-1.5 rounded-lg border text-xs font-semibold cursor-pointer transition-colors ${
                             isSpeakingReadings
                               ? 'border-[#D92525] bg-rose-50 dark:bg-rose-950/40 text-[#D92525] dark:text-rose-300'
                               : 'border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-[#1B1E28] hover:border-[#D92525] text-[#141413] dark:text-zinc-100'
@@ -1038,32 +1161,32 @@ export const KanjiSrsSection: React.FC<KanjiSrsSectionProps> = ({
                             setFlipped(false);
                             playCardFlipSound(soundEnabled);
                           }}
-                          className="text-xs font-medium text-stone-500 hover:text-[#D92525] cursor-pointer"
+                          className="min-h-[40px] px-2.5 py-1.5 rounded-lg text-xs font-medium text-stone-500 hover:text-[#D92525] cursor-pointer"
                         >
                           Flip Front
                         </button>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 text-xs">
-                      <div className="p-3 rounded-xl bg-stone-50 dark:bg-[#1B1E28] border border-stone-200/70 dark:border-zinc-800">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                      <div className="min-w-0 p-3 rounded-xl bg-stone-50 dark:bg-[#1B1E28] border border-stone-200/70 dark:border-zinc-800">
                         <p className="text-stone-500 dark:text-zinc-400 font-semibold">
                           On’yomi (音読み)
                         </p>
                         <p
                           data-testid="kanji-onyomi-readings"
-                          className="font-jp text-sm font-bold text-[#141413] dark:text-white mt-1"
+                          className="font-jp text-sm font-bold text-[#141413] dark:text-white mt-1 break-words"
                         >
                           {formatKanjiCardReadingsWithRomaji(currentKanji.onyomi)}
                         </p>
                       </div>
-                      <div className="p-3 rounded-xl bg-stone-50 dark:bg-[#1B1E28] border border-stone-200/70 dark:border-zinc-800">
+                      <div className="min-w-0 p-3 rounded-xl bg-stone-50 dark:bg-[#1B1E28] border border-stone-200/70 dark:border-zinc-800">
                         <p className="text-stone-500 dark:text-zinc-400 font-semibold">
                           Kun’yomi (訓読み)
                         </p>
                         <p
                           data-testid="kanji-kunyomi-readings"
-                          className="font-jp text-sm font-bold text-[#141413] dark:text-white mt-1"
+                          className="font-jp text-sm font-bold text-[#141413] dark:text-white mt-1 break-words"
                         >
                           {formatKanjiCardReadingsWithRomaji(currentKanji.kunyomi)}
                         </p>
@@ -1087,7 +1210,7 @@ export const KanjiSrsSection: React.FC<KanjiSrsSectionProps> = ({
                             <div
                               key={sentence.id}
                               data-testid={`kanji-example-sentence-${idx}`}
-                              className="akujin-card-lift p-3 rounded-xl bg-stone-50 dark:bg-[#1B1E28] border border-stone-200/70 dark:border-zinc-800 space-y-1"
+                              className="akujin-card-lift min-w-0 p-3 rounded-xl bg-stone-50 dark:bg-[#1B1E28] border border-stone-200/70 dark:border-zinc-800 space-y-1"
                             >
                               <div className="flex items-start justify-between gap-2">
                                 <div className="min-w-0 flex-1">
@@ -1097,7 +1220,7 @@ export const KanjiSrsSection: React.FC<KanjiSrsSectionProps> = ({
                                     romaji={sentence.romaji}
                                     showFurigana={true}
                                     showRomaji={true}
-                                    className="text-sm sm:text-[15px] font-bold text-[#141413] dark:text-white leading-relaxed"
+                                    className="text-sm sm:text-[15px] font-bold text-[#141413] dark:text-white leading-relaxed break-words"
                                   />
                                 </div>
                                 <button
@@ -1112,19 +1235,19 @@ export const KanjiSrsSection: React.FC<KanjiSrsSectionProps> = ({
                                     );
                                   }}
                                   aria-label={`Play example sentence ${idx + 1} for ${currentKanji.kanji}`}
-                                  className={`inline-flex items-center gap-1 px-2 py-1 rounded-md border text-[11px] font-semibold shrink-0 cursor-pointer transition-colors ${
+                                  className={`inline-flex items-center gap-1 min-h-[38px] px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold shrink-0 cursor-pointer transition-colors ${
                                     isPlaying
                                       ? 'border-[#D92525] bg-rose-50 dark:bg-rose-950/40 text-[#D92525] dark:text-rose-300'
                                       : 'border-stone-200 dark:border-zinc-700 bg-white dark:bg-[#101218] text-stone-600 dark:text-zinc-300 hover:border-[#D92525] hover:text-[#D92525]'
                                   }`}
                                 >
-                                  <Volume2 className="w-3 h-3" aria-hidden="true" />
+                                  <Volume2 className="w-3.5 h-3.5" aria-hidden="true" />
                                   {isPlaying ? 'Playing...' : 'Listen'}
                                 </button>
                               </div>
                               <p
                                 data-testid={`kanji-example-english-${idx}`}
-                                className="text-xs text-stone-600 dark:text-zinc-300"
+                                className="text-xs text-stone-600 dark:text-zinc-300 break-words"
                               >
                                 {sentence.english}
                               </p>
@@ -1137,36 +1260,36 @@ export const KanjiSrsSection: React.FC<KanjiSrsSectionProps> = ({
                 </div>
 
                 {/* SM-2 Rating Controls */}
-                <div className="pt-4 mt-4 border-t border-stone-200 dark:border-zinc-800 flex flex-wrap items-center justify-between gap-2">
+                <div className="pt-4 mt-4 border-t border-stone-200 dark:border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <span className="text-xs text-stone-500 dark:text-zinc-400">
                     Rate your recall to schedule SM-2 review:
                   </span>
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 w-full sm:w-auto">
                     <button
                       type="button"
                       onClick={() => handleRate(1)}
-                      className="px-3.5 py-2 rounded-lg border border-rose-300 dark:border-rose-800 text-xs font-semibold text-[#D92525] dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 cursor-pointer"
+                      className="min-h-[44px] px-3.5 py-2 rounded-lg border border-rose-300 dark:border-rose-800 text-xs font-semibold text-[#D92525] dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 cursor-pointer"
                     >
                       Again (1d)
                     </button>
                     <button
                       type="button"
                       onClick={() => handleRate(3)}
-                      className="px-3.5 py-2 rounded-lg border border-stone-300 dark:border-zinc-700 text-xs font-semibold text-stone-700 dark:text-zinc-200 hover:bg-stone-100 dark:hover:bg-zinc-800 cursor-pointer"
+                      className="min-h-[44px] px-3.5 py-2 rounded-lg border border-stone-300 dark:border-zinc-700 text-xs font-semibold text-stone-700 dark:text-zinc-200 hover:bg-stone-100 dark:hover:bg-zinc-800 cursor-pointer"
                     >
                       Hard
                     </button>
                     <button
                       type="button"
                       onClick={() => handleRate(4)}
-                      className="px-3.5 py-2 rounded-lg bg-[#D92525] hover:bg-[#B91C1C] text-white text-xs font-semibold cursor-pointer"
+                      className="min-h-[44px] px-3.5 py-2 rounded-lg bg-[#D92525] hover:bg-[#B91C1C] text-white text-xs font-semibold cursor-pointer"
                     >
                       Good (+20 XP)
                     </button>
                     <button
                       type="button"
                       onClick={() => handleRate(5)}
-                      className="px-3.5 py-2 rounded-lg bg-[#141413] dark:bg-white text-white dark:text-[#141413] text-xs font-semibold cursor-pointer"
+                      className="min-h-[44px] px-3.5 py-2 rounded-lg bg-[#141413] dark:bg-white text-white dark:text-[#141413] text-xs font-semibold cursor-pointer"
                     >
                       Easy (+30 XP)
                     </button>
@@ -1187,8 +1310,11 @@ export const KanjiSrsSection: React.FC<KanjiSrsSectionProps> = ({
         darkMode={darkMode}
         soundEnabled={soundEnabled}
         initialMode={initialPracticeMode}
+        requestedPracticeMode={requestedDrawingMode}
         deckIndex={activeCardIndex}
         deckTotal={activeDeck.length}
+        totalCatalogCount={fullSrsDeck.length}
+        onShowAllKanji={handleShowAllJoyoKanji}
         onGainXp={onGainXp}
         onPrevKanji={() => {
           setFlipped(false);
@@ -1203,11 +1329,11 @@ export const KanjiSrsSection: React.FC<KanjiSrsSectionProps> = ({
       />
 
       {/* Progress Analytics & Daily Review Heatmap */}
-      <section className="rounded-2xl bg-white dark:bg-[#16181F] border border-stone-200 dark:border-zinc-800 p-6 sm:p-8 space-y-6">
+      <section className="rounded-2xl bg-white dark:bg-[#16181F] border border-stone-200 dark:border-zinc-800 p-4 sm:p-6 md:p-8 space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-2.5">
-            <BarChart3 className="w-5 h-5 text-[#D92525]" aria-hidden="true" />
-            <div>
+          <div className="flex items-center gap-2.5 min-w-0">
+            <BarChart3 className="w-5 h-5 text-[#D92525] shrink-0" aria-hidden="true" />
+            <div className="min-w-0">
               <h2 className="text-lg font-bold text-[#141413] dark:text-white">
                 Kanji Retention Analytics &amp; Daily Review Heatmap
               </h2>
@@ -1219,28 +1345,28 @@ export const KanjiSrsSection: React.FC<KanjiSrsSectionProps> = ({
         </div>
 
         {/* 4-column Analytics Strip */}
-        <div data-reveal-stagger="true" className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="akujin-card-lift p-4 rounded-xl bg-stone-50 dark:bg-[#1B1E28] border border-stone-200/70 dark:border-zinc-800">
+        <div data-reveal-stagger="true" className="grid grid-cols-2 md:grid-cols-4 gap-3.5 sm:gap-4">
+          <div className="akujin-card-lift min-w-0 p-4 rounded-xl bg-stone-50 dark:bg-[#1B1E28] border border-stone-200/70 dark:border-zinc-800">
             <p className="text-xs text-stone-500 dark:text-zinc-400">Retention Rate</p>
-            <p className="text-2xl font-bold font-mono-nums text-[#141413] dark:text-white mt-1">
+            <p className="text-xl sm:text-2xl font-bold font-mono-nums text-[#141413] dark:text-white mt-1">
               {analytics.retentionRate}%
             </p>
           </div>
-          <div className="akujin-card-lift p-4 rounded-xl bg-stone-50 dark:bg-[#1B1E28] border border-stone-200/70 dark:border-zinc-800">
+          <div className="akujin-card-lift min-w-0 p-4 rounded-xl bg-stone-50 dark:bg-[#1B1E28] border border-stone-200/70 dark:border-zinc-800">
             <p className="text-xs text-stone-500 dark:text-zinc-400">Learned Kanji</p>
-            <p className="text-2xl font-bold font-mono-nums text-[#141413] dark:text-white mt-1">
+            <p className="text-xl sm:text-2xl font-bold font-mono-nums text-[#141413] dark:text-white mt-1">
               {analytics.learnedCount.toLocaleString()} / {fullSrsDeck.length.toLocaleString()}
             </p>
           </div>
-          <div className="akujin-card-lift p-4 rounded-xl bg-stone-50 dark:bg-[#1B1E28] border border-stone-200/70 dark:border-zinc-800">
+          <div className="akujin-card-lift min-w-0 p-4 rounded-xl bg-stone-50 dark:bg-[#1B1E28] border border-stone-200/70 dark:border-zinc-800">
             <p className="text-xs text-stone-500 dark:text-zinc-400">Total SRS Reviews</p>
-            <p className="text-2xl font-bold font-mono-nums text-[#141413] dark:text-white mt-1">
+            <p className="text-xl sm:text-2xl font-bold font-mono-nums text-[#141413] dark:text-white mt-1">
               {analytics.totalReviews}
             </p>
           </div>
-          <div className="akujin-card-lift p-4 rounded-xl bg-stone-50 dark:bg-[#1B1E28] border border-stone-200/70 dark:border-zinc-800">
+          <div className="akujin-card-lift min-w-0 p-4 rounded-xl bg-stone-50 dark:bg-[#1B1E28] border border-stone-200/70 dark:border-zinc-800">
             <p className="text-xs text-stone-500 dark:text-zinc-400">Deck Coverage</p>
-            <p className="text-2xl font-bold font-mono-nums text-[#D92525] dark:text-rose-400 mt-1">
+            <p className="text-xl sm:text-2xl font-bold font-mono-nums text-[#D92525] dark:text-rose-400 mt-1">
               {analytics.deckCoveragePct}%
             </p>
           </div>
@@ -1373,7 +1499,7 @@ export const KanjiSrsSection: React.FC<KanjiSrsSectionProps> = ({
 
           <div
             data-testid="kanji-heatmap"
-            className="grid grid-cols-14 sm:grid-cols-28 gap-1.5"
+            className="grid grid-cols-14 md:grid-cols-28 gap-1.5"
           >
             {heatmapDays.map((day) => {
               let colorClass = 'bg-stone-200/80 dark:bg-zinc-800';
@@ -1397,18 +1523,30 @@ export const KanjiSrsSection: React.FC<KanjiSrsSectionProps> = ({
       <section
         data-testid="joyo-kanji-directory"
         data-total-joyo-count={fullJoyoCatalog.length}
-        className="rounded-2xl bg-white dark:bg-[#16181F] border border-stone-200 dark:border-zinc-800 p-6 sm:p-8 space-y-5"
+        className="rounded-2xl bg-white dark:bg-[#16181F] border border-stone-200 dark:border-zinc-800 p-4 sm:p-6 md:p-8 space-y-5"
       >
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div>
+          <div className="min-w-0">
             <p className="text-xs font-medium text-[#D92525] dark:text-rose-400">
-              常用漢字全集 ({visibleJoyoCatalog.length.toLocaleString()}字{allVisible ? '' : ' Shown'}) · Complete Official Jōyō Kanji {allVisible ? 'N5–N1' : activeVisibleLevels.join(' · ')} Index
+              常用漢字全集 ({levelScopedCatalog.length.toLocaleString()}字{levelScopedCatalog.length < fullJoyoCatalog.length ? ` of ${fullJoyoCatalog.length.toLocaleString()} Shown` : ''}) · Complete Official Jōyō Kanji {allVisible && levelFilter === 'ALL' ? 'N5–N1' : levelFilter !== 'ALL' ? levelFilter : activeVisibleLevels.join(' · ')} Index
             </p>
-            <h2 className="text-lg font-bold text-[#141413] dark:text-white">
-              Full Level Kanji Directory ({filteredCatalog.length.toLocaleString()} Kanji Shown)
-            </h2>
+            <div className="flex flex-wrap items-center gap-2.5 mt-0.5">
+              <h2 className="text-lg font-bold text-[#141413] dark:text-white">
+                Full Level Kanji Directory ({filteredCatalog.length.toLocaleString()} Kanji Shown)
+              </h2>
+              {isKanjiDeckNarrowed && filteredCatalog.length < fullJoyoCatalog.length && (
+                <button
+                  type="button"
+                  data-testid="directory-show-all-2136"
+                  onClick={handleShowAllJoyoKanji}
+                  className="min-h-[38px] px-3 py-1.5 rounded-lg border border-[#D92525]/35 bg-rose-50/70 dark:bg-rose-950/30 text-[11px] font-semibold text-[#D92525] dark:text-rose-300 hover:bg-rose-100/80 cursor-pointer"
+                >
+                  Show All {fullJoyoCatalog.length.toLocaleString()} Jōyō Kanji
+                </button>
+              )}
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 w-full lg:w-auto">
             <select
               aria-label="Filter Kanji by school grade"
               value={gradeFilter === 'ALL' ? 'ALL' : String(gradeFilter)}
@@ -1417,19 +1555,19 @@ export const KanjiSrsSection: React.FC<KanjiSrsSectionProps> = ({
                 setGradeFilter(v === 'ALL' ? 'ALL' : Number(v));
                 setCatalogPage(0);
               }}
-              className="px-3 py-2 rounded-xl border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-[#101218] text-xs text-[#141413] dark:text-white"
+              className="w-full sm:w-auto min-h-[42px] px-3 py-2 rounded-xl border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-[#101218] text-xs text-[#141413] dark:text-white"
             >
-              <option value="ALL">All Grades (2,136)</option>
-              <option value="1">Grade 1 (80)</option>
-              <option value="2">Grade 2 (160)</option>
-              <option value="3">Grade 3 (200)</option>
-              <option value="4">Grade 4 (200)</option>
-              <option value="5">Grade 5 (185)</option>
-              <option value="6">Grade 6 (181)</option>
-              <option value="8">Secondary / N2–N1 (1,130)</option>
+              <option value="ALL">All Grades ({gradeCounts.all.toLocaleString()})</option>
+              <option value="1">Grade 1 ({(gradeCounts.byGrade[1] ?? 0).toLocaleString()})</option>
+              <option value="2">Grade 2 ({(gradeCounts.byGrade[2] ?? 0).toLocaleString()})</option>
+              <option value="3">Grade 3 ({(gradeCounts.byGrade[3] ?? 0).toLocaleString()})</option>
+              <option value="4">Grade 4 ({(gradeCounts.byGrade[4] ?? 0).toLocaleString()})</option>
+              <option value="5">Grade 5 ({(gradeCounts.byGrade[5] ?? 0).toLocaleString()})</option>
+              <option value="6">Grade 6 ({(gradeCounts.byGrade[6] ?? 0).toLocaleString()})</option>
+              <option value="8">Secondary / N2–N1 ({(gradeCounts.byGrade[8] ?? 0).toLocaleString()})</option>
             </select>
-            <div className="relative w-full sm:w-64">
-              <Search className="w-3.5 h-3.5 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" aria-hidden="true" />
+            <div className="relative w-full sm:w-72">
+              <Search className="w-3.5 h-3.5 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" aria-hidden="true" />
               <input
                 type="search"
                 value={catalogSearch}
@@ -1438,14 +1576,14 @@ export const KanjiSrsSection: React.FC<KanjiSrsSectionProps> = ({
                   setCatalogPage(0);
                 }}
                 placeholder="Search kanji, meaning, or reading..."
-                className="w-full pl-9 pr-3 py-2 rounded-xl border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-[#101218] text-xs text-[#141413] dark:text-white"
+                className="w-full min-h-[42px] pl-9 pr-3 py-2 rounded-xl border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-[#101218] text-xs text-[#141413] dark:text-white"
               />
             </div>
           </div>
         </div>
 
         {pagedCatalog.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-stone-200 dark:border-zinc-800 bg-stone-50/70 dark:bg-[#101218] p-8 text-center space-y-2">
+          <div className="rounded-xl border border-dashed border-stone-200 dark:border-zinc-800 bg-stone-50/70 dark:bg-[#101218] p-8 text-center space-y-3">
             <p className="text-sm font-semibold text-[#141413] dark:text-white">
               No Kanji match “{catalogSearch}”
             </p>
@@ -1455,23 +1593,23 @@ export const KanjiSrsSection: React.FC<KanjiSrsSectionProps> = ({
                 setCatalogSearch('');
                 setCatalogPage(0);
               }}
-              className="px-3.5 py-1.5 rounded-lg border border-stone-300 dark:border-zinc-700 text-xs font-semibold text-[#141413] dark:text-white hover:border-[#D92525] cursor-pointer"
+              className="min-h-[40px] px-4 py-2 rounded-lg border border-stone-300 dark:border-zinc-700 text-xs font-semibold text-[#141413] dark:text-white hover:border-[#D92525] cursor-pointer"
             >
               Clear Search
             </button>
           </div>
         ) : (
-          <div data-reveal-stagger="true" className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div data-reveal-stagger="true" className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3.5">
             {pagedCatalog.map((item) => {
               const mastered = masteredItemIds.includes(item.id);
               return (
                 <div
                   key={item.id}
-                  className="akujin-card-lift p-4 rounded-xl bg-stone-50/70 dark:bg-[#1B1E28] border border-stone-200/80 dark:border-zinc-800 hover:border-[#D92525]/50 flex flex-col justify-between gap-2.5"
+                  className="akujin-card-lift min-w-0 overflow-hidden p-4 rounded-xl bg-stone-50/70 dark:bg-[#1B1E28] border border-stone-200/80 dark:border-zinc-800 hover:border-[#D92525]/50 flex flex-col justify-between gap-3"
                 >
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-mono-nums font-bold text-[#D92525] dark:text-rose-400">
+                  <div className="space-y-1.5 min-w-0">
+                    <div className="flex items-start justify-between gap-2 min-w-0">
+                      <span className="min-w-0 break-words leading-snug text-[11px] font-mono-nums font-bold text-[#D92525] dark:text-rose-400">
                         {item.level} · {item.strokes}画 · Radical {item.radical}
                       </span>
                       <button
@@ -1484,56 +1622,56 @@ export const KanjiSrsSection: React.FC<KanjiSrsSectionProps> = ({
                         }
                         title="Play Pronunciation (On'yomi & Kun'yomi)"
                         aria-label={`Play pronunciation for ${item.kanji}`}
-                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-white dark:hover:bg-zinc-800 text-[10px] font-semibold text-[#D92525] cursor-pointer"
+                        className="inline-flex items-center justify-center gap-1 min-h-[40px] min-w-[40px] px-2.5 py-1.5 rounded-lg hover:bg-white dark:hover:bg-zinc-800 text-[11px] font-semibold text-[#D92525] shrink-0 cursor-pointer"
                       >
                         <Volume2 className="w-3.5 h-3.5" aria-hidden="true" />
                         <span>Play</span>
                       </button>
                     </div>
-                    <div className="flex items-baseline gap-2.5">
-                      <span className="font-jp text-3xl font-bold text-[#141413] dark:text-white">
+                    <div className="flex items-baseline gap-2.5 min-w-0">
+                      <span className="font-jp text-3xl font-bold text-[#141413] dark:text-white shrink-0">
                         {item.kanji}
                       </span>
-                      <span className="text-xs font-bold text-[#141413] dark:text-zinc-100">
+                      <span className="text-xs font-bold text-[#141413] dark:text-zinc-100 min-w-0 break-words">
                         {item.meaning}
                       </span>
                     </div>
                     <p
                       data-testid="joyo-card-readings"
-                      className="text-[11px] font-jp text-stone-600 dark:text-zinc-300 leading-relaxed"
+                      className="text-[11px] font-jp text-stone-600 dark:text-zinc-300 leading-relaxed break-words"
                     >
                       On: {formatKanaReadingsWithRomaji(item.onyomi)} · Kun:{' '}
                       {formatKanaReadingsWithRomaji(item.kunyomi)}
                     </p>
-                    <p className="text-[11px] font-jp text-stone-500 dark:text-zinc-400">
+                    <p className="text-[11px] font-jp text-stone-500 dark:text-zinc-400 leading-relaxed break-words">
                       Word: {item.sampleWord} ({item.sampleReading}) — {item.sampleMeaning}
                     </p>
                   </div>
 
-                  <div className="space-y-1.5">
+                  <div className="space-y-2">
                     <button
                       type="button"
                       onClick={() => {
                         handleStartStudyForKanji(item.kanji);
                         window.scrollTo({ top: 0, behavior: 'smooth' });
                       }}
-                      className="akujin-btn-press w-full py-1.5 rounded-lg text-[11px] font-semibold bg-[#D92525] hover:bg-[#B91C1C] text-white flex items-center justify-center gap-1 cursor-pointer"
+                      className="akujin-btn-press w-full min-h-[42px] px-3 py-2.5 rounded-lg text-xs font-semibold bg-[#D92525] hover:bg-[#B91C1C] text-white flex items-center justify-center gap-1.5 cursor-pointer"
                     >
-                      Practice Flashcard &amp; Canvas
-                      <ArrowRight className="w-3 h-3" aria-hidden="true" />
+                      <span>Practice Flashcard &amp; Canvas</span>
+                      <ArrowRight className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
                     </button>
                     <button
                       type="button"
                       disabled={mastered}
                       onClick={() => onMasterItem(item.id, 5)}
-                      className={`akujin-btn-press w-full py-1.5 rounded-lg text-[11px] font-semibold flex items-center justify-center gap-1 cursor-pointer ${
+                      className={`akujin-btn-press w-full min-h-[42px] px-3 py-2.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer ${
                         mastered
                           ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 cursor-default'
                           : 'bg-white dark:bg-[#101218] border border-stone-200 dark:border-zinc-700 hover:border-[#D92525] text-[#141413] dark:text-zinc-200'
                       }`}
                     >
-                      <CheckCircle2 className="w-3 h-3" aria-hidden="true" />
-                      {mastered ? 'Learned' : 'Mark Learned (+5 XP)'}
+                      <CheckCircle2 className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                      <span>{mastered ? 'Learned' : 'Mark Learned (+5 XP)'}</span>
                     </button>
                   </div>
                 </div>
@@ -1542,7 +1680,7 @@ export const KanjiSrsSection: React.FC<KanjiSrsSectionProps> = ({
           </div>
         )}
 
-        <div className="flex items-center justify-between text-xs text-stone-500 dark:text-zinc-400">
+        <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-stone-500 dark:text-zinc-400">
           <span className="font-mono-nums">
             Page {safeCatalogPage + 1} / {totalCatalogPages} · Showing {pagedCatalog.length} of {filteredCatalog.length}
           </span>
@@ -1551,7 +1689,7 @@ export const KanjiSrsSection: React.FC<KanjiSrsSectionProps> = ({
               type="button"
               disabled={safeCatalogPage === 0}
               onClick={() => setCatalogPage((p) => Math.max(0, p - 1))}
-              className="px-3 py-1.5 rounded-lg border border-stone-200 dark:border-zinc-700 disabled:opacity-40 cursor-pointer"
+              className="min-h-[40px] px-4 py-2 rounded-lg border border-stone-200 dark:border-zinc-700 disabled:opacity-40 cursor-pointer"
             >
               Prev
             </button>
@@ -1559,7 +1697,7 @@ export const KanjiSrsSection: React.FC<KanjiSrsSectionProps> = ({
               type="button"
               disabled={safeCatalogPage >= totalCatalogPages - 1}
               onClick={() => setCatalogPage((p) => Math.min(totalCatalogPages - 1, p + 1))}
-              className="px-3 py-1.5 rounded-lg border border-stone-200 dark:border-zinc-700 disabled:opacity-40 cursor-pointer"
+              className="min-h-[40px] px-4 py-2 rounded-lg border border-stone-200 dark:border-zinc-700 disabled:opacity-40 cursor-pointer"
             >
               Next
             </button>

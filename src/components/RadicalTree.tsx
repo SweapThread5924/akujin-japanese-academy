@@ -108,7 +108,7 @@ export const RadicalTree: React.FC<RadicalTreeProps> = ({ kanji, darkMode, audio
   };
 
   return (
-    <div className="lg:col-span-5 min-w-0 rounded-2xl bg-white dark:bg-[#16181F] border border-stone-200 dark:border-zinc-800 p-5 sm:p-6 space-y-5">
+    <div className="xl:col-span-5 min-w-0 rounded-2xl bg-white dark:bg-[#16181F] border border-stone-200 dark:border-zinc-800 p-4 sm:p-6 space-y-5">
       <div className="space-y-1.5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
@@ -129,7 +129,7 @@ export const RadicalTree: React.FC<RadicalTreeProps> = ({ kanji, darkMode, audio
                 role="tab"
                 aria-selected={expandSubRadicals}
                 onClick={() => setExpandSubRadicals(true)}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-semibold whitespace-nowrap cursor-pointer transition-colors ${
+                className={`min-h-[38px] px-3 py-1.5 rounded-md text-[11px] font-semibold whitespace-nowrap cursor-pointer transition-colors ${
                   expandSubRadicals
                     ? 'bg-white dark:bg-[#1E2029] text-[#141413] dark:text-white shadow-xs'
                     : 'text-stone-600 dark:text-zinc-400 hover:text-[#141413] dark:hover:text-white'
@@ -147,7 +147,7 @@ export const RadicalTree: React.FC<RadicalTreeProps> = ({ kanji, darkMode, audio
                     setSelectedNodeId(`root-${kanji.id}`);
                   }
                 }}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-semibold whitespace-nowrap cursor-pointer transition-colors ${
+                className={`min-h-[38px] px-3 py-1.5 rounded-md text-[11px] font-semibold whitespace-nowrap cursor-pointer transition-colors ${
                   !expandSubRadicals
                     ? 'bg-white dark:bg-[#1E2029] text-[#141413] dark:text-white shadow-xs'
                     : 'text-stone-600 dark:text-zinc-400 hover:text-[#141413] dark:hover:text-white'
@@ -351,7 +351,7 @@ export const RadicalTree: React.FC<RadicalTreeProps> = ({ kanji, darkMode, audio
                 data-testid="radical-tree-speak-btn"
                 onClick={() => speakJapanese(kanji.kanji, audioSpeed)}
                 aria-label={`Pronounce ${kanji.kanji}`}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-stone-200 dark:border-zinc-700 bg-white dark:bg-[#16181F] text-xs font-medium text-stone-700 dark:text-zinc-200 hover:border-[#D92525] cursor-pointer shrink-0"
+                className="inline-flex items-center gap-1.5 min-h-[40px] px-3 py-1.5 rounded-lg border border-stone-200 dark:border-zinc-700 bg-white dark:bg-[#16181F] text-xs font-medium text-stone-700 dark:text-zinc-200 hover:border-[#D92525] cursor-pointer shrink-0"
               >
                 <Volume2 className="w-3.5 h-3.5 text-[#D92525]" aria-hidden="true" />
                 Speak

@@ -16,11 +16,11 @@ export type AppTab =
   | 'foundations'
   | 'lessons'
   | 'kanji'
+  | 'dictionary'
   | 'scenarios'
   | 'study-japan'
   | 'resources'
-  | 'leaderboard'
-  | 'gmail';
+  | 'leaderboard';
 
 interface TopNavProps {
   activeTab: AppTab;
@@ -57,11 +57,11 @@ const NAV_ITEMS: { id: AppTab; label: string }[] = [
   { id: 'foundations', label: 'Foundations' },
   { id: 'lessons', label: 'JLPT N5–N1' },
   { id: 'kanji', label: 'Kanji SRS' },
+  { id: 'dictionary', label: 'Dictionary' },
   { id: 'scenarios', label: 'Scenarios' },
   { id: 'study-japan', label: 'Study in Japan' },
   { id: 'resources', label: 'Resources' },
   { id: 'leaderboard', label: 'Leaderboard' },
-  { id: 'gmail', label: 'Gmail' },
 ];
 
 export const TopNav: React.FC<TopNavProps> = ({
@@ -133,7 +133,7 @@ export const TopNav: React.FC<TopNavProps> = ({
       }`}
     >
       {/* Primary 3-zone Top Bar */}
-      <div className="mx-auto max-w-[1280px] px-2.5 sm:px-5 h-14 sm:h-16 flex items-center justify-between gap-1.5 sm:gap-3 lg:gap-4">
+      <div className="mx-auto max-w-[1380px] px-2.5 sm:px-5 h-14 sm:h-16 flex items-center justify-between gap-1.5 sm:gap-3 lg:gap-3.5">
         {/* Zone 1: Single-line Brand Title */}
         <button
           type="button"
@@ -149,7 +149,7 @@ export const TopNav: React.FC<TopNavProps> = ({
         </button>
 
         {/* Zone 2: Concise Single-Line Navigation Links */}
-        <nav aria-label="Main navigation" className="hidden xl:flex items-center gap-2 2xl:gap-3 min-w-0">
+        <nav aria-label="Main navigation" className="hidden lg:flex items-center gap-2 xl:gap-2.5 2xl:gap-3.5 min-w-0 overflow-x-auto akujin-no-scrollbar">
           {NAV_ITEMS.map((item) => {
             const active = activeTab === item.id;
             return (
@@ -158,7 +158,7 @@ export const TopNav: React.FC<TopNavProps> = ({
                 type="button"
                 onClick={() => onSelectTab(item.id)}
                 aria-current={active ? 'page' : undefined}
-                className={`relative py-2 text-[11px] lg:text-xs font-medium whitespace-nowrap shrink-0 transition-all duration-200 cursor-pointer akujin-btn-press ${
+                className={`relative py-2 text-[11px] xl:text-xs font-medium whitespace-nowrap shrink-0 transition-all duration-200 cursor-pointer akujin-btn-press ${
                   active
                     ? 'text-[#D92525] dark:text-rose-400 font-semibold'
                     : 'text-stone-600 hover:text-[#141413] dark:text-zinc-400 dark:hover:text-white'
@@ -174,7 +174,7 @@ export const TopNav: React.FC<TopNavProps> = ({
         </nav>
 
         {/* Zone 3: Gamified HUD + Primary Action */}
-        <div className="flex items-center gap-1 sm:gap-1.5 lg:gap-2 shrink-0">
+        <div className="flex items-center gap-1 sm:gap-1.5 lg:gap-1.5 xl:gap-2 shrink-0">
           {/* Streak Counter */}
           <div
             data-testid="streak-counter"
@@ -220,14 +220,14 @@ export const TopNav: React.FC<TopNavProps> = ({
 
           {/* XP Points Bar */}
           <div
-            className="hidden xl:flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-stone-200 dark:border-zinc-800 bg-white dark:bg-[#16181F] whitespace-nowrap"
+            className="hidden xl:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-stone-200 dark:border-zinc-800 bg-white dark:bg-[#16181F] whitespace-nowrap"
             title={`${rank.title} (${xp} XP / ${rank.nextXp} XP)`}
           >
             <Trophy className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" aria-hidden="true" />
             <span className="text-xs font-mono-nums font-semibold text-[#141413] dark:text-zinc-100">
               {xp} XP
             </span>
-            <div className="w-14 h-1.5 rounded-full bg-stone-200 dark:bg-zinc-700 overflow-hidden">
+            <div className="hidden 2xl:block w-12 h-1.5 rounded-full bg-stone-200 dark:bg-zinc-700 overflow-hidden">
               <div
                 className="h-full bg-[#D92525] transition-all duration-300"
                 style={{ width: `${rank.progressPct}%` }}
@@ -326,11 +326,14 @@ export const TopNav: React.FC<TopNavProps> = ({
         </div>
       </div>
 
-      {/* Compact Inspiring Quote Strip & Mobile Tab Navigation */}
+      {/* Compact Inspiring Quote Strip & Mobile Single-Row Navigation */}
       <div className="border-t border-stone-200/70 dark:border-zinc-800/80 bg-stone-50/70 dark:bg-[#121319]">
-        <div className="mx-auto max-w-[1280px] px-3 sm:px-6 py-1.5 flex items-center justify-between gap-3">
-          {/* Mobile & Tablet Tab Strip fitted cleanly below xl */}
-          <nav aria-label="Mobile navigation" className="flex xl:hidden flex-wrap items-center justify-center w-full gap-1 sm:gap-1.5">
+        <div className="mx-auto max-w-[1380px] px-2.5 sm:px-5 py-1.5 flex items-center justify-between gap-3">
+          {/* Mobile & Small Tablet Single-Row Scrollable Tab Strip (below lg) */}
+          <nav
+            aria-label="Mobile navigation"
+            className="flex lg:hidden items-center gap-1.5 overflow-x-auto akujin-no-scrollbar w-full py-0.5"
+          >
             {NAV_ITEMS.map((item) => {
               const active = activeTab === item.id;
               return (
@@ -338,9 +341,10 @@ export const TopNav: React.FC<TopNavProps> = ({
                   key={item.id}
                   type="button"
                   onClick={() => onSelectTab(item.id)}
-                  className={`px-2 py-1 rounded-md text-[11px] font-medium whitespace-nowrap shrink-0 akujin-btn-press ${
+                  aria-current={active ? 'page' : undefined}
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-medium whitespace-nowrap shrink-0 cursor-pointer akujin-btn-press ${
                     active
-                      ? 'bg-[#D92525] text-white shadow-xs'
+                      ? 'bg-[#D92525] text-white shadow-xs font-semibold'
                       : 'text-stone-600 dark:text-zinc-300 hover:bg-stone-200/60 dark:hover:bg-zinc-800'
                   }`}
                 >
@@ -351,7 +355,7 @@ export const TopNav: React.FC<TopNavProps> = ({
           </nav>
 
           {/* Desktop Dynamic Track Badge + Famous Personality Daily Quote */}
-          <div className="hidden xl:flex items-center gap-3 min-w-0 text-xs text-stone-600 dark:text-zinc-300">
+          <div className="hidden lg:flex items-center gap-3 min-w-0 text-xs text-stone-600 dark:text-zinc-300">
             <JlptLevelBadge
               level={targetLevel}
               startingTrack={startingTrack}
@@ -379,7 +383,7 @@ export const TopNav: React.FC<TopNavProps> = ({
           </div>
 
           {/* Reading Aids: Furigana & Romaji Toggles + PWA Install */}
-          <div className="hidden xl:flex items-center gap-2 ml-auto shrink-0">
+          <div className="hidden lg:flex items-center gap-2 ml-auto shrink-0">
             <button
               type="button"
               onClick={onToggleFurigana}

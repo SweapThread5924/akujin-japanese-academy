@@ -128,18 +128,26 @@ export function buildFullJoyoKanjiDeck(
   curatedDeck: KanjiCard[],
   joyoCatalog: JoyoKanjiEntry[]
 ): KanjiCard[] {
-  const curatedByChar = new Map<string, KanjiCard>();
-  for (const card of curatedDeck) {
-    curatedByChar.set(card.kanji, card);
+  const joyoByChar = new Map<string, JoyoKanjiEntry>();
+  for (const entry of joyoCatalog) {
+    if (entry.kanji && !joyoByChar.has(entry.kanji)) {
+      joyoByChar.set(entry.kanji, entry);
+    }
   }
 
   const seenChars = new Set<string>();
   const result: KanjiCard[] = [];
 
-  // Preserve curated cards first so default initial card & SRS IDs remain stable
+  // Preserve curated cards first so default initial card & SRS IDs remain stable,
+  // while keeping JLPT level aligned with the official 2,136 Jōyō catalog.
   for (const card of curatedDeck) {
     seenChars.add(card.kanji);
-    result.push(card);
+    const catalogMatch = joyoByChar.get(card.kanji);
+    result.push(
+      catalogMatch && catalogMatch.level !== card.level
+        ? { ...card, level: catalogMatch.level }
+        : card
+    );
   }
 
   for (const entry of joyoCatalog) {

@@ -21,6 +21,10 @@ let joyoKanjiCache: JoyoKanjiEntry[] | null = null;
 const vocabCache = new Map<JlptLevel, VocabLexiconItem[]>();
 let grammarCache: Record<JlptLevel, GrammarPointItem[]> | null = null;
 
+export function getCachedJoyoKanji2136(): JoyoKanjiEntry[] | null {
+  return joyoKanjiCache;
+}
+
 export async function loadJoyoKanji2136(): Promise<JoyoKanjiEntry[]> {
   if (joyoKanjiCache) return joyoKanjiCache;
   const res = await fetch('/data/joyo-kanji-2136.json');

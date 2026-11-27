@@ -210,7 +210,7 @@ export const ToastNotificationHost: React.FC<ToastNotificationHostProps> = ({
     <div
       aria-label="Notifications"
       data-testid="toast-notification-host"
-      className="pointer-events-none fixed bottom-5 right-5 z-50 flex flex-col gap-3 items-end w-[calc(100vw-2.5rem)] sm:w-[385px]"
+      className="pointer-events-none fixed bottom-20 right-5 z-50 flex flex-col gap-3 items-end w-[calc(100vw-2.5rem)] sm:w-[385px]"
     >
       {toasts.map((item) => (
         <ToastCardWrapper

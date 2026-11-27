@@ -99,13 +99,13 @@ export const KanjiMasteryTrendChart: React.FC<KanjiMasteryTrendChartProps> = ({
 
   const kanjiLevelById = useMemo(() => {
     const map = new Map<string, JlptLevel>();
-    for (const card of KANJI_DECK) {
-      map.set(card.id, card.level);
-    }
+    const catalogLevelByChar = new Map<string, JlptLevel>();
     for (const entry of ALL_JLPT_KANJI_CATALOG) {
-      if (!map.has(entry.id)) {
-        map.set(entry.id, entry.level);
-      }
+      map.set(entry.id, entry.level);
+      catalogLevelByChar.set(entry.kanji, entry.level);
+    }
+    for (const card of KANJI_DECK) {
+      map.set(card.id, catalogLevelByChar.get(card.kanji) ?? card.level);
     }
     return map;
   }, []);

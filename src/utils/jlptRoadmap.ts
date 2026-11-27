@@ -1,7 +1,10 @@
 import type { JlptLevel, SrsCardProgress } from './srsEngine';
 import { computePerLevelKanjiBreakdown } from './joyoProgress';
+import { buildFullJoyoKanjiDeck } from './joyoDeckBuilder';
 import { KANJI_DECK } from '../data/curriculumData';
 import { ALL_JLPT_KANJI_CATALOG } from '../data/jlptUpperData';
+
+const FULL_ROADMAP_SRS_DECK = buildFullJoyoKanjiDeck(KANJI_DECK, ALL_JLPT_KANJI_CATALOG);
 
 export type MilestoneStatus = 'mastered' | 'in-progress' | 'unlocked' | 'locked';
 
@@ -139,7 +142,7 @@ export function buildJlptRoadmapMilestones(params: {
     joyoCatalog: ALL_JLPT_KANJI_CATALOG,
     masteredItemIds: params.masteredItemIds,
     srsProgress: params.srsProgress,
-    srsDeck: KANJI_DECK,
+    srsDeck: FULL_ROADMAP_SRS_DECK,
   });
   const breakdownByLevel = new Map(breakdown.map((b) => [b.level, b]));
   const targetIndex = LEVEL_ORDER.indexOf(params.targetLevel);

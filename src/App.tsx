@@ -5,8 +5,10 @@ import { JlptLevelBadge } from './components/JlptLevelBadge';
 import { OverviewSection } from './components/OverviewSection';
 import { FoundationsSection } from './components/FoundationsSection';
 import { LessonsSection, type DiscussionItem } from './components/LessonsSection';
-import { KanjiSrsSection } from './components/KanjiSrsSection';
+import { KanjiSrsSection, type FocusedKanjiRequest } from './components/KanjiSrsSection';
+import { KanjiDictionarySection } from './components/KanjiDictionarySection';
 import type { KanjiPracticeMode } from './components/KanjiDrawingBoard';
+import type { JoyoKanjiEntry } from './utils/datasetLoader';
 import { AuthModal } from './components/AuthModal';
 import { OnboardingModal } from './components/OnboardingModal';
 import { SakuraWelcomeCelebration } from './components/SakuraWelcomeCelebration';
@@ -97,7 +99,8 @@ import {
   summarizeReadingSpeed,
   type ReadingSpeedRecord,
 } from './utils/readingSpeed';
-import { GmailWorkspacePanel } from './components/GmailWorkspacePanel';
+import { FloatingGmailLauncher } from './components/FloatingGmailLauncher';
+import { QuickActionMenu } from './components/QuickActionMenu';
 
 interface LearnerState {
   profileId: string;
@@ -221,6 +224,9 @@ export default function App() {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'signup'>('login');
+  const [gmailModalOpen, setGmailModalOpen] = useState(false);
+  const [kanjiJumpRequest, setKanjiJumpRequest] = useState<FocusedKanjiRequest | null>(null);
+  const skipNextScrollTopRef = useRef(false);
 
   const [learner, setLearner] = useState<LearnerState>(DEFAULT_STATE);
   const [onboardingModalOpen, setOnboardingModalOpen] = useState(false);
@@ -369,8 +375,10 @@ export default function App() {
     if (params.get('autostart') === '1') {
       setActiveTab('foundations');
     }
-    const tabParam = params.get('tab') as AppTab | null;
-    if (
+    const tabParam = params.get('tab');
+    if (tabParam === 'gmail') {
+      setGmailModalOpen(true);
+    } else if (
       tabParam &&
       [
         'overview',
@@ -378,18 +386,22 @@ export default function App() {
         'foundations',
         'lessons',
         'kanji',
+        'dictionary',
         'scenarios',
         'study-japan',
         'resources',
         'leaderboard',
-        'gmail',
       ].includes(tabParam)
     ) {
-      setActiveTab(tabParam);
+      setActiveTab(tabParam as AppTab);
     }
   }, []);
 
   useEffect(() => {
+    if (skipNextScrollTopRef.current) {
+      skipNextScrollTopRef.current = false;
+      return;
+    }
     window.scrollTo({ top: 0, behavior: 'auto' });
   }, [activeTab]);
 
@@ -588,6 +600,25 @@ export default function App() {
     setVisibleJlptLevels([lvl]);
     setSelectedLevel(lvl);
   };
+
+  const handleJumpFromDictionary = useCallback(
+    (entry: JoyoKanjiEntry, targetView: 'srs' | 'stroke-practice') => {
+      setVisibleJlptLevels((prev) =>
+        prev.includes(entry.level)
+          ? prev
+          : ALL_JLPT_LEVELS.filter((item) => prev.includes(item) || item === entry.level)
+      );
+      skipNextScrollTopRef.current = true;
+      setKanjiJumpRequest({
+        kanji: entry.kanji,
+        level: entry.level,
+        targetView,
+        nonce: Date.now(),
+      });
+      setActiveTab('kanji');
+    },
+    []
+  );
 
   const handleChangeDailyStudyGoal = (minutes: DailyStudyGoalMinutes) => {
     const normalized = normalizeDailyStudyGoal(minutes);
@@ -1075,6 +1106,27 @@ export default function App() {
     }
   };
 
+  const navigateToLeaderboardSection = useCallback((elementId: string) => {
+    setActiveTab((prev) => {
+      if (prev !== 'leaderboard') {
+        skipNextScrollTopRef.current = true;
+      }
+      return 'leaderboard';
+    });
+    window.setTimeout(() => {
+      const target = document.getElementById(elementId);
+      if (target) {
+        const prefersReduced =
+          typeof window !== 'undefined' &&
+          window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        target.scrollIntoView({
+          behavior: prefersReduced ? 'auto' : 'smooth',
+          block: 'start',
+        });
+      }
+    }, 80);
+  }, []);
+
   const todayMinutesStudied = estimateTodayStudyMinutes(learner.heatmapHistory);
 
   useAutoScrollReveal(mainRef, `${activeTab}-${selectedLevel}`);
@@ -1126,7 +1178,7 @@ export default function App() {
       />
 
       <main ref={mainRef} className="relative z-10 flex-1">
-        <div className="xl:hidden border-b border-stone-200/70 dark:border-zinc-800 bg-stone-50/80 dark:bg-[#121319] px-2.5 sm:px-5 py-1.5 flex flex-wrap items-center justify-between gap-1.5">
+        <div className="lg:hidden border-b border-stone-200/70 dark:border-zinc-800 bg-stone-50/80 dark:bg-[#121319] px-2.5 sm:px-5 py-1.5 flex flex-wrap items-center justify-between gap-1.5">
           <div className="flex items-center gap-1.5 min-w-0">
             <JlptLevelBadge
               level={learner.targetLevel}
@@ -1168,8 +1220,7 @@ export default function App() {
 
         <div key={activeTab} className="animate-tab-enter">
         {activeTab === 'overview' && (
-          <div className="akujin-scroll-item" data-reveal="true">
-            <OverviewSection
+          <OverviewSection
               selectedLevel={selectedLevel}
               targetLevel={learner.targetLevel}
               visibleLevels={visibleJlptLevels}
@@ -1185,13 +1236,12 @@ export default function App() {
               onMasterItem={handleMasterItem}
               userEmail={session?.email}
               learnerName={learner.name}
+              onOpenGmailWorkspace={() => setGmailModalOpen(true)}
             />
-          </div>
         )}
 
         {activeTab === 'roadmap' && (
-          <div className="akujin-scroll-item" data-reveal="true">
-            <RoadmapSection
+          <RoadmapSection
               xp={learner.xp}
               targetLevel={learner.targetLevel}
               visibleLevels={visibleJlptLevels}
@@ -1206,12 +1256,10 @@ export default function App() {
               }}
               onOpenKanjiSrs={() => setActiveTab('kanji')}
             />
-          </div>
         )}
 
         {activeTab === 'foundations' && (
-          <div className="akujin-scroll-item" data-reveal="true">
-            <FoundationsSection
+          <FoundationsSection
               showRomaji={showRomaji}
               soundEnabled={soundEnabled}
               masteredItemIds={learner.masteredItemIds}
@@ -1222,12 +1270,10 @@ export default function App() {
                 setActiveTab('lessons');
               }}
             />
-          </div>
         )}
 
         {activeTab === 'lessons' && (
-          <div className="akujin-scroll-item" data-reveal="true">
-            <LessonsSection
+          <LessonsSection
               selectedLevel={selectedLevel}
               visibleLevels={visibleJlptLevels}
               onResetVisibleLevels={handleShowAllJlptLevels}
@@ -1246,12 +1292,10 @@ export default function App() {
               onMasterItem={handleMasterItem}
               onRecordReadingSpeed={handleRecordReadingSpeed}
             />
-          </div>
         )}
 
         {activeTab === 'kanji' && (
-          <div className="akujin-scroll-item" data-reveal="true">
-            <KanjiSrsSection
+          <KanjiSrsSection
               targetLevel={learner.targetLevel}
               visibleLevels={visibleJlptLevels}
               onResetVisibleLevels={handleShowAllJlptLevels}
@@ -1264,17 +1308,28 @@ export default function App() {
               soundEnabled={soundEnabled}
               darkMode={darkMode}
               initialPracticeMode={initialKanjiMode}
+              focusedKanjiRequest={kanjiJumpRequest}
               masteredItemIds={learner.masteredItemIds}
               onMasterItem={handleMasterItem}
               audioSpeed={audioSpeed}
               onChangeAudioSpeed={handleChangeAudioSpeed}
             />
-          </div>
+        )}
+
+        {activeTab === 'dictionary' && (
+          <KanjiDictionarySection
+              srsProgress={learner.srsProgress}
+              masteredItemIds={learner.masteredItemIds}
+              showRomaji={showRomaji}
+              audioSpeed={audioSpeed}
+              onChangeAudioSpeed={handleChangeAudioSpeed}
+              onOpenSrsCard={(entry) => handleJumpFromDictionary(entry, 'srs')}
+              onOpenStrokePractice={(entry) => handleJumpFromDictionary(entry, 'stroke-practice')}
+            />
         )}
 
         {activeTab === 'scenarios' && (
-          <div className="akujin-scroll-item" data-reveal="true">
-            <ScenariosSection
+          <ScenariosSection
               xp={learner.xp}
               showRomaji={showRomaji}
               bookmarkedPhrases={learner.bookmarkedPhrases}
@@ -1283,27 +1338,21 @@ export default function App() {
               audioSpeed={audioSpeed}
               onChangeAudioSpeed={handleChangeAudioSpeed}
             />
-          </div>
         )}
 
         {activeTab === 'study-japan' && (
-          <div className="akujin-scroll-item" data-reveal="true">
-            <StudyInJapanSection />
-          </div>
+          <StudyInJapanSection />
         )}
 
         {activeTab === 'resources' && (
-          <div className="akujin-scroll-item" data-reveal="true">
-            <ResourcesSection
+          <ResourcesSection
               visibleLevels={visibleJlptLevels}
               onResetVisibleLevels={handleShowAllJlptLevels}
             />
-          </div>
         )}
 
         {activeTab === 'leaderboard' && (
-          <div className="akujin-scroll-item" data-reveal="true">
-            <LeaderboardSyncSection
+          <LeaderboardSyncSection
               profileId={learner.profileId}
               learnerName={learner.name}
               learnerEmail={session?.email}
@@ -1352,40 +1401,8 @@ export default function App() {
               audioSpeed={audioSpeed}
               readingSpeedRecords={learner.readingSpeedRecords}
               onOpenReadingLab={() => setActiveTab('lessons')}
-              onOpenGmailHub={() => setActiveTab('gmail')}
+              onOpenGmailHub={() => setGmailModalOpen(true)}
             />
-          </div>
-        )}
-
-        {activeTab === 'gmail' && (
-          <div className="akujin-scroll-item" data-reveal="true">
-            <GmailWorkspacePanel
-              learnerName={learner.name}
-              learnerEmail={session?.email}
-              targetLevel={learner.targetLevel}
-              xp={learner.xp}
-              streak={learner.streak}
-              kanjiLearnedCount={
-                Object.values(learner.srsProgress).filter((c) => c.repetitions >= 1).length
-              }
-              masteredItemsCount={learner.masteredItemIds.length}
-              readingSummary={summarizeReadingSpeed(learner.readingSpeedRecords)}
-              onGoogleConnected={async () => {
-                const user = auth.currentUser;
-                if (user?.email) {
-                  const nextSess: StoredSession = {
-                    profileId: `fb-${user.uid}`,
-                    email: user.email,
-                    name: user.displayName || learner.name,
-                    authType: 'google',
-                  };
-                  setSession(nextSess);
-                  localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(nextSess));
-                }
-                showToast('Gmail Workspace connected securely.');
-              }}
-            />
-          </div>
         )}
         </div>
       </main>
@@ -1415,12 +1432,60 @@ export default function App() {
 
       <BackToTopButton />
 
+      <QuickActionMenu
+        isGmailOpen={gmailModalOpen}
+        isGmailConnected={Boolean(firebaseUser?.email || session?.authType === 'google')}
+        gmailEmail={session?.email}
+        streak={learner.streak}
+        streakFreezes={learner.streakFreezes}
+        lastStudyDate={learner.lastStudyDate}
+        unlockedAchievements={learner.unlockedAchievements}
+        xp={learner.xp}
+        dailyStudyGoalMinutes={learner.dailyStudyGoalMinutes}
+        todayMinutesStudied={todayMinutesStudied}
+        onOpenGmail={() => setGmailModalOpen(true)}
+        onOpenAchievements={() => navigateToLeaderboardSection('achievements-showcase')}
+        onOpenStreakStatus={() => navigateToLeaderboardSection('streak-status-vault')}
+      />
+
+      <FloatingGmailLauncher
+        showFloatingButton={false}
+        isOpen={gmailModalOpen}
+        onOpen={() => setGmailModalOpen(true)}
+        onClose={() => setGmailModalOpen(false)}
+        isConnected={Boolean(firebaseUser?.email || session?.authType === 'google')}
+        learnerName={learner.name}
+        learnerEmail={session?.email}
+        targetLevel={learner.targetLevel}
+        xp={learner.xp}
+        streak={learner.streak}
+        kanjiLearnedCount={
+          Object.values(learner.srsProgress).filter((c) => c.repetitions >= 1).length
+        }
+        masteredItemsCount={learner.masteredItemIds.length}
+        readingSummary={summarizeReadingSpeed(learner.readingSpeedRecords)}
+        onGoogleConnected={async () => {
+          const user = auth.currentUser;
+          if (user?.email) {
+            const nextSess: StoredSession = {
+              profileId: `fb-${user.uid}`,
+              email: user.email,
+              name: user.displayName || learner.name,
+              authType: 'google',
+            };
+            setSession(nextSess);
+            localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(nextSess));
+          }
+          showToast('Gmail Workspace connected securely.');
+        }}
+      />
+
       <ToastNotificationHost
         toasts={toasts}
         onDismiss={dismissToast}
         onPauseTimer={pauseToastTimer}
         onResumeTimer={resumeToastTimer}
-        onViewAchievements={() => setActiveTab('leaderboard')}
+        onViewAchievements={() => navigateToLeaderboardSection('achievements-showcase')}
       />
 
       {/* Editorial Footer + Subscribe to Newsletter + 2026 Copyright */}
@@ -1465,6 +1530,13 @@ export default function App() {
               </button>
               <button
                 type="button"
+                onClick={() => setActiveTab('dictionary')}
+                className="akujin-link-underline hover:text-[#D92525] transition-colors cursor-pointer"
+              >
+                2,136 Kanji Dictionary
+              </button>
+              <button
+                type="button"
                 onClick={() => setActiveTab('scenarios')}
                 className="akujin-link-underline hover:text-[#D92525] transition-colors cursor-pointer"
               >
@@ -1499,7 +1571,7 @@ export default function App() {
               </button>
               <button
                 type="button"
-                onClick={() => setActiveTab('gmail')}
+                onClick={() => setGmailModalOpen(true)}
                 className="akujin-link-underline hover:text-[#D92525] transition-colors cursor-pointer"
               >
                 Gmail Study Inbox

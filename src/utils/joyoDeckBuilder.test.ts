@@ -36,11 +36,11 @@ test('buildFullJoyoKanjiDeck expands to all 2,136 unique Joyo Kanji with valid s
   }
 
   assert.equal(uniqueChars.size, 2136);
-  assert.ok(levelCounts.N5 >= 100);
-  assert.ok(levelCounts.N4 >= 140);
-  assert.ok(levelCounts.N3 >= 360);
-  assert.ok(levelCounts.N2 >= 360);
-  assert.ok(levelCounts.N1 >= 1100);
+  const expectedCounts: Record<string, number> = { N5: 0, N4: 0, N3: 0, N2: 0, N1: 0 };
+  for (const entry of raw) {
+    expectedCounts[entry.level] = (expectedCounts[entry.level] ?? 0) + 1;
+  }
+  assert.deepEqual(levelCounts, expectedCounts);
 });
 
 test('generateGuidedStrokePaths matches stroke count and stays within 0..100 viewBox', () => {
